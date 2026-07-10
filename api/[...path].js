@@ -1,9 +1,6 @@
-const app = require("../src/app");
-const connectDB = require("../src/config/db");
+// const app = require("../src/app");
 
-const handler = async (req, res) => {
-    await connectDB();
+module.exports = (req, res) => {
+    console.log("🔥 API HIT (path):", req.url);
     return app(req, res);
 };
-
-module.exports = handler;
