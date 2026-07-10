@@ -16,12 +16,19 @@ const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
 
-connectDB();
-
 const allowedOrigins = (process.env.FRONTEND_URL || "")
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
+
+const ensureDB = async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (error) {
+        next(error);
+    }
+};
 
 app.use(
     cors({
@@ -58,7 +65,7 @@ app.get("/api/health", (req, res) => {
     });
 });
 
-app.use("/api/v1/jobs", jobRoutes);
+app.use("/api/v1/jobs", ensureDB, jobRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
