@@ -1,60 +1,82 @@
 const cheerio = require("cheerio");
-const { BASE_URL } = require("./constants");
 
-const SECTION_MAP = {
-    "Latest Jobs": "latest_job",
-    "Admit Card": "admit_card",
-    "Results": "result",
-    "Answer Key": "answer_key",
-    "Admission": "admission",
-    "Syllabus": "syllabus",
-};
+const BASE_URL = "https://www.sarkariresult.com";
 
-const normalizeUrl = (url) => {
-    if (!url) return null;
+const INVALID_TITLES = [
+    "home",
+    "contact",
+    "about",
+    "privacy",
+    "terms",
+    "telegram",
+    "facebook",
+    "instagram",
+    "youtube",
+    "twitter",
+    "whatsapp",
+    "syllabus",
+    "admission",
+    "answer key",
+    "latest jobs",
+    "latest job",
+    "results",
+    "admit card",
+];
 
-    if (url.startsWith("/")) {
-        return BASE_URL + url;
-    }
+function isNotification(url) {
+    return (
+        url.includes("/202") ||
+        url.includes("/railway/") ||
+        url.includes("/upsc/") ||
+        url.includes("/ssc/") ||
+        url.includes("/bank/") ||
+        url.includes("/bihar/") ||
+        url.includes("/upsssc/") ||
+        url.includes("/nta/") ||
+        url.includes("/mp/") ||
+        url.includes("/delhi/")
+    );
+}
 
-    return url;
-};
-
-const parseListingPage = (html) => {
+const parseListingPage = ({ html, section }) => {
     const $ = cheerio.load(html);
 
-    const jobs = [];
+    const notifications = [];
     const visited = new Set();
 
-    Object.entries(SECTION_MAP).forEach(([heading, section]) => {
-        $("b").each((_, element) => {
-            const text = $(element).text().trim();
+    $(".entry-content a").each((_, el) => {
+        let title = $(el).text().trim();
 
-            if (text !== heading) return;
+        let url = $(el).attr("href");
 
-            const table = $(element).closest("table");
+        if (!title || !url) return;
 
-            table.find("a").each((_, a) => {
-                const title = $(a).text().trim();
+        title = title.replace(/\s+/g, " ").trim();
 
-                let url = normalizeUrl($(a).attr("href"));
+        if (url.startsWith("/")) {
+            url = BASE_URL + url;
+        }
 
-                if (!title || !url) return;
+        if (!url.startsWith(BASE_URL)) return;
 
-                if (visited.has(url)) return;
+        if (!isNotification(url)) return;
 
-                visited.add(url);
+        const lower = title.toLowerCase();
 
-                jobs.push({
-                    title,
-                    url,
-                    section,
-                });
-            });
+        if (INVALID_TITLES.some((x) => lower.includes(x))) return;
+
+        if (visited.has(url)) return;
+
+        visited.add(url);
+
+        notifications.push({
+            title,
+            url,
+            section,
         });
     });
 
-    return jobs;
+    return notifications;
 };
 
 module.exports = {

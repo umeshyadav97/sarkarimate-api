@@ -49,4 +49,7 @@ categorySchema.pre("save", function (next) {
 
 });
 
+categorySchema.index({ slug: 1 });
+categorySchema.index({ isActive: 1 });
+
 module.exports = mongoose.model("Category", categorySchema);

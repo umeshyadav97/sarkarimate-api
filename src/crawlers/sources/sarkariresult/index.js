@@ -1,21 +1,29 @@
-const { BASE_URL } = require("./constants");
 const { fetchHtml } = require("../../core/http");
-const { parseListingPage } = require("./listing.parser");
+const { SECTIONS } = require("./constants");
 
-const crawlHomePage = async () => {
-    console.log("Downloading Homepage...");
+const crawlSections = async () => {
+    const pages = [];
 
-    const html = await fetchHtml(BASE_URL);
+    for (const item of SECTIONS) {
+        console.log(`Downloading ${item.section}...`);
 
-    console.log("Parsing Homepage...");
+        const html = await fetchHtml(item.url);
 
-    const notifications = parseListingPage(html);
+        pages.push({
+            section: item.section,
+            url: item.url,
+            html,
+        });
+    }
 
-    console.log(`Found ${notifications.length} notifications`);
+    return pages;
+};
 
-    return notifications;
+const crawlDetailPage = async (url) => {
+    return await fetchHtml(url);
 };
 
 module.exports = {
-    crawlHomePage,
+    crawlSections,
+    crawlDetailPage,
 };

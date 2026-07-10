@@ -9,13 +9,17 @@ const importantDateSchema = new mongoose.Schema(
         title: {
             type: String,
             required: true,
-            trim: true,
         },
 
         date: {
             type: String,
             required: true,
-            trim: true,
+        },
+
+        status: {
+            type: String,
+            enum: ["completed", "current", "upcoming"],
+            default: "upcoming",
         },
     },
     {
@@ -28,11 +32,7 @@ const importantDateSchema = new mongoose.Schema(
  */
 const importantLinkSchema = new mongoose.Schema(
     {
-        title: {
-            type: String,
-            required: true,
-            trim: true,
-        },
+        title: String,
 
         type: {
             type: String,
@@ -49,6 +49,7 @@ const importantLinkSchema = new mongoose.Schema(
                 "exam_date",
                 "city_intimation",
                 "document_verification",
+                "login",
                 "other",
             ],
             default: "other",
@@ -60,14 +61,9 @@ const importantLinkSchema = new mongoose.Schema(
             trim: true,
         },
 
-        isActive: {
+        isPrimary: {
             type: Boolean,
-            default: true,
-        },
-
-        publishedAt: {
-            type: Date,
-            default: Date.now,
+            default: false,
         },
     },
     {
@@ -90,10 +86,23 @@ const vacancySchema = new mongoose.Schema(
             trim: true,
         },
 
+        district: {
+            type: String,
+            trim: true,
+        },
+
         totalPosts: {
             type: Number,
             default: 0,
         },
+
+        qualification: String,
+
+        lastDate: String,
+
+        notificationPdf: String,
+
+        applyLink: String,
     },
     {
         _id: false,
@@ -140,8 +149,23 @@ const timelineSchema = new mongoose.Schema(
             trim: true,
         },
 
+        title: {
+            type: String,
+            trim: true,
+        },
+
+        description: {
+            type: String,
+            trim: true,
+        },
+
         date: {
-            type: Date,
+            type: String,
+        },
+
+        completed: {
+            type: Boolean,
+            default: false,
         },
     },
     {
@@ -163,7 +187,7 @@ const jobSchema = new mongoose.Schema(
         slug: {
             type: String,
             unique: true,
-            index: true,
+            sparse: true,
         },
 
         shortDescription: {
@@ -176,13 +200,13 @@ const jobSchema = new mongoose.Schema(
         category: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Category",
-            required: true,
+            required: false,
         },
 
         department: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Department",
-            required: true,
+            required: false,
         },
 
         organization: {
@@ -216,6 +240,28 @@ const jobSchema = new mongoose.Schema(
         ageLimit: String,
 
         applicationFee: String,
+        minimumAge: Number,
+
+        maximumAge: Number,
+
+        ageAsOn: String,
+
+        isFree: {
+            type: Boolean,
+            default: false,
+        },
+
+        applicationFeeAmount: Number,
+
+        lastDate: String,
+
+        examDate: String,
+
+        resultDate: String,
+
+        admitCardDate: String,
+
+        notificationDate: String,
 
         gender: {
             type: String,
@@ -226,6 +272,24 @@ const jobSchema = new mongoose.Schema(
         salary: String,
 
         selectionProcess: [selectionProcessSchema],
+
+        howToApply: [
+            {
+                type: String,
+            },
+        ],
+
+        documentsRequired: [
+            {
+                type: String,
+            },
+        ],
+
+        whoCanApply: [
+            {
+                type: String,
+            },
+        ],
 
         /**
          * Important Dates
@@ -246,6 +310,10 @@ const jobSchema = new mongoose.Schema(
          * About
          */
         aboutOrganization: String,
+
+        aboutRecruitment: String,
+
+        officialNotificationSummary: String,
 
         faqs: [faqSchema],
 
@@ -330,6 +398,20 @@ const jobSchema = new mongoose.Schema(
             keywords: [String],
         },
 
+        quickOverview: {
+            totalPosts: Number,
+            qualification: String,
+            ageLimit: String,
+            applicationFee: String,
+            gender: String,
+        },
+
+        searchKeywords: [
+            {
+                type: String,
+            },
+        ],
+
         /**
          * AI Summary
          */
@@ -379,10 +461,13 @@ const jobSchema = new mongoose.Schema(
  */
 jobSchema.pre("save", function (next) {
     if (this.isModified("title")) {
-        this.slug = slugify(this.title, {
-            lower: true,
-            strict: true,
-        });
+        this.slug =
+            slugify(this.title, {
+                lower: true,
+                strict: true,
+            }) +
+            "-" +
+            Date.now();
     }
 
     next();
@@ -407,6 +492,17 @@ jobSchema.index({ applicationStatus: 1 });
 jobSchema.index({ sections: 1 });
 jobSchema.index({ isFeatured: 1 });
 jobSchema.index({ isTrending: 1 });
-jobSchema.index({ sourceUrl: 1 });
+
+jobSchema.index({ isActive: 1 });
+
+jobSchema.index({ lastDate: 1 });
+
+jobSchema.index({ source: 1 });
+
+jobSchema.index({ organization: 1 });
+
+jobSchema.index({ state: 1 });
+
+jobSchema.index({ publishedAt: -1, isActive: 1 });
 
 module.exports = mongoose.model("Job", jobSchema);

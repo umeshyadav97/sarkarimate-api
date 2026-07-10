@@ -43,4 +43,7 @@ departmentSchema.pre("save", function (next) {
 
 });
 
+departmentSchema.index({ slug: 1 });
+departmentSchema.index({ isActive: 1 });
+
 module.exports = mongoose.model("Department", departmentSchema);

@@ -27,7 +27,7 @@ const createJob = async (payload) => {
 const getJobs = async (query) => {
     let {
         page = 1,
-        limit = 10,
+        limit = 20,
         search,
         category,
         department,
@@ -47,16 +47,15 @@ const getJobs = async (query) => {
     };
 
     if (category) filter.category = category;
-
     if (department) filter.department = department;
-
     if (state) filter.state = state;
+    if (applicationStatus) filter.applicationStatus = applicationStatus;
 
-    if (applicationStatus)
-        filter.applicationStatus = applicationStatus;
-
-    if (sections)
-        filter.sections = sections;
+    if (sections) {
+        filter.sections = Array.isArray(sections)
+            ? { $in: sections }
+            : sections;
+    }
 
     if (isFeatured !== undefined)
         filter.isFeatured = isFeatured === "true";
@@ -84,6 +83,12 @@ const getJobs = async (query) => {
                     $options: "i",
                 },
             },
+            {
+                qualification: {
+                    $regex: search,
+                    $options: "i",
+                },
+            },
         ];
     }
 
@@ -92,7 +97,7 @@ const getJobs = async (query) => {
     switch (sort) {
         case "oldest":
             sortQuery = {
-                createdAt: 1,
+                publishedAt: 1,
             };
             break;
 
@@ -102,10 +107,17 @@ const getJobs = async (query) => {
             };
             break;
 
+        case "featured":
+            sortQuery = {
+                isFeatured: -1,
+                publishedAt: -1,
+            };
+            break;
+
         case "latest":
         default:
             sortQuery = {
-                createdAt: -1,
+                publishedAt: -1,
             };
             break;
     }
@@ -131,6 +143,8 @@ const getJobs = async (query) => {
             page,
             limit,
             totalPages: Math.ceil(total / limit),
+            hasNextPage: page * limit < total,
+            hasPrevPage: page > 1,
         },
     };
 };

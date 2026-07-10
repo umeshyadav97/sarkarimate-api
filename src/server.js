@@ -1,12 +1,13 @@
 const express = require("express");
 const dotenv = require("dotenv");
+require("./models");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const compression = require("compression");
 const jobRoutes = require("./routes/job.routes");
 
-const router = express.Router();
+
 const connectDB = require("./config/db");
 
 dotenv.config();
@@ -33,8 +34,8 @@ app.get("/api/health", (req, res) => {
         timestamp: new Date()
     });
 });
-router.use("/jobs", jobRoutes);
-const PORT = process.env.PORT || 5000;
+app.use("/api/v1/jobs", jobRoutes);
+const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
