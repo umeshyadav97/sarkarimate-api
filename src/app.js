@@ -144,6 +144,20 @@ app.get("/api/health", (req, res) => {
 /**
  * API Routes
  */
+
+app.get("/api/v1/test", (req, res) => {
+    console.log("🔥 TEST ROUTE HIT");
+
+    res.json({
+        success: true,
+        message: "Test route works",
+    });
+});
+app.use((req, res, next) => {
+    console.log("➡️ Incoming Request:", req.method, req.originalUrl);
+    next();
+});
+
 app.use("/api/v1/jobs", jobRoutes);
 
 /**

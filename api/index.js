@@ -21,6 +21,7 @@ const connectDB = require("../src/config/db");
 
 module.exports = async (req, res) => {
     try {
+        console.log("🔥 Serverless:", req.method, req.url);
         await connectDB();
         return app(req, res);
     } catch (error) {
