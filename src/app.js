@@ -1,68 +1,3 @@
-// const express = require("express");
-// const dotenv = require("dotenv");
-// const cors = require("cors");
-// const helmet = require("helmet");
-// const morgan = require("morgan");
-// const compression = require("compression");
-
-// dotenv.config();
-
-// require("./models");
-
-// const jobRoutes = require("./routes/job.routes");
-// const notFound = require("./middleware/notFound");
-// const errorHandler = require("./middleware/errorHandler");
-
-// const app = express();
-
-// const allowedOrigins = (process.env.FRONTEND_URL || "")
-//     .split(",")
-//     .map((origin) => origin.trim())
-//     .filter(Boolean);
-
-// app.use(
-//     cors({
-//         origin(origin, callback) {
-//             if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
-//                 return callback(null, true);
-//             }
-
-//             return callback(new Error("Not allowed by CORS"));
-//         },
-//         credentials: true,
-//     })
-// );
-// app.use(helmet());
-// app.use(compression());
-// app.use(express.json());
-// app.use(express.urlencoded({ extended: true }));
-// app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
-
-// app.get("/", (req, res) => {
-//     res.status(200).json({
-//         success: true,
-//         message: "SarkariMate API",
-//         health: "/api/health",
-//     });
-// });
-
-// app.get("/api/health", (req, res) => {
-//     res.status(200).json({
-//         success: true,
-//         message: "SarkariMate API is running",
-//         environment: process.env.NODE_ENV,
-//         timestamp: new Date(),
-//     });
-// });
-
-// app.use("/api/v1/jobs", jobRoutes);
-
-// app.use(notFound);
-// app.use(errorHandler);
-
-// module.exports = app;
-
-
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
@@ -89,11 +24,7 @@ const allowedOrigins = (process.env.FRONTEND_URL || "")
 app.use(
     cors({
         origin(origin, callback) {
-            if (
-                !origin ||
-                allowedOrigins.length === 0 ||
-                allowedOrigins.includes(origin)
-            ) {
+            if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
                 return callback(null, true);
             }
 
@@ -102,18 +33,12 @@ app.use(
         credentials: true,
     })
 );
-
 app.use(helmet());
 app.use(compression());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
-app.use(
-    morgan(process.env.NODE_ENV === "production" ? "combined" : "dev")
-);
+app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 
-/**
- * Root Route
- */
 app.get("/", (req, res) => {
     res.status(200).json({
         success: true,
@@ -123,51 +48,21 @@ app.get("/", (req, res) => {
     });
 });
 
-/**
- * Health Check
- */
 app.get("/api/health", (req, res) => {
     res.status(200).json({
         success: true,
         status: "healthy",
         message: "SarkariMate API is running",
-        database:
-            mongoose.connection.readyState === 1
-                ? "connected"
-                : "disconnected",
+        database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
         uptime: Math.floor(process.uptime()),
         environment: process.env.NODE_ENV || "development",
         timestamp: new Date().toISOString(),
     });
 });
 
-/**
- * API Routes
- */
-
-app.get("/api/v1/test", (req, res) => {
-    console.log("🔥 TEST ROUTE HIT");
-
-    res.json({
-        success: true,
-        message: "Test route works",
-    });
-});
-app.use((req, res, next) => {
-    console.log("➡️ Incoming Request:", req.method, req.originalUrl);
-    next();
-});
-
 app.use("/api/v1/jobs", jobRoutes);
 
-/**
- * 404 Handler
- */
 app.use(notFound);
-
-/**
- * Global Error Handler
- */
 app.use(errorHandler);
 
 module.exports = app;

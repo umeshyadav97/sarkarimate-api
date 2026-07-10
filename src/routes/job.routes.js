@@ -32,21 +32,12 @@ router.post(
 );
 
 // Get All Jobs
-// router.get(
-//     "/",
-//     getJobsValidation,
-//     validateRequest,
-//     getJobs
-// );
-// Temporary Debug Route
-router.get("/", (req, res) => {
-    console.log("🔥 GET /api/v1/jobs reached");
-
-    res.status(200).json({
-        success: true,
-        message: "Jobs route is working",
-    });
-});
+router.get(
+    "/",
+    getJobsValidation,
+    validateRequest,
+    getJobs
+);
 
 // Get Single Job
 router.get(
