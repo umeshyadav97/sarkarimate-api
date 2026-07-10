@@ -2,6 +2,7 @@ const dns = require("dns");
 const mongoose = require("mongoose");
 
 let cachedConnection = null;
+let connectingPromise = null;
 let dnsConfigured = false;
 
 const configureDns = () => {
@@ -25,30 +26,39 @@ const connectDB = async () => {
         return cachedConnection;
     }
 
-    try {
-        configureDns();
-
-        if (!process.env.MONGODB_URI) {
-            throw new Error("MONGODB_URI is not configured");
-        }
-
-        const conn = await mongoose.connect(process.env.MONGODB_URI);
-
-        cachedConnection = conn;
-
-        console.log(`MongoDB connected: ${conn.connection.host}`);
-
-        return conn;
-    } catch (error) {
-        console.error("MongoDB connection failed");
-        console.error(error.message);
-
-        if (process.env.VERCEL) {
-            throw error;
-        }
-
-        process.exit(1);
+    if (connectingPromise) {
+        return connectingPromise;
     }
+
+    configureDns();
+
+    if (!process.env.MONGODB_URI) {
+        throw new Error("MONGODB_URI is not configured");
+    }
+
+    connectingPromise = mongoose
+        .connect(process.env.MONGODB_URI, {
+            serverSelectionTimeoutMS: 5000,
+            maxPoolSize: 10,
+        })
+        .then((conn) => {
+            cachedConnection = conn;
+            connectingPromise = null;
+
+            console.log(`✅ MongoDB connected: ${conn.connection.host}`);
+
+            return conn;
+        })
+        .catch((error) => {
+            connectingPromise = null;
+
+            console.error("❌ MongoDB connection failed");
+            console.error(error);
+
+            throw error;
+        });
+
+    return connectingPromise;
 };
 
 module.exports = connectDB;
