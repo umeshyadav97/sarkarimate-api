@@ -9,7 +9,6 @@ dotenv.config();
 
 require("./models");
 
-const connectDB = require("./config/db");
 const jobRoutes = require("./routes/job.routes");
 const notFound = require("./middleware/notFound");
 const errorHandler = require("./middleware/errorHandler");
@@ -20,15 +19,6 @@ const allowedOrigins = (process.env.FRONTEND_URL || "")
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
-
-const ensureDB = async (req, res, next) => {
-    try {
-        await connectDB();
-        next();
-    } catch (error) {
-        next(error);
-    }
-};
 
 app.use(
     cors({
@@ -65,7 +55,7 @@ app.get("/api/health", (req, res) => {
     });
 });
 
-app.use("/api/v1/jobs", ensureDB, jobRoutes);
+app.use("/api/v1/jobs", jobRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
