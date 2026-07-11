@@ -5,7 +5,8 @@ const {
     getJobs,
     getJobBySlug,
     updateJob,
-    deleteJob,
+    deleteJob, 
+    getHomeJobs,getJobDetails
 } = require("../controllers/job.controller");
 
 const validateRequest = require("../middleware/validateRequest");
@@ -29,6 +30,14 @@ router.post(
     createJobValidation,
     validateRequest,
     createJob
+);
+
+// Home Jobs
+router.get(
+    "/home",
+    getJobsValidation,
+    validateRequest,
+    getHomeJobs
 );
 
 // Get All Jobs
@@ -61,6 +70,11 @@ router.delete(
     updateJobValidation,
     validateRequest,
     deleteJob
+);
+
+router.get(
+    "/details/:id",
+    getJobDetails
 );
 
 module.exports = router;

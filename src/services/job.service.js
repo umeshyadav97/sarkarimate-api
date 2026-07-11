@@ -1,5 +1,6 @@
 const Job = require("../models/Job");
 const ApiError = require("../utils/ApiError");
+const mongoose = require("mongoose");
 
 /**
  * Create Job
@@ -211,10 +212,74 @@ const deleteJob = async (id) => {
     return job;
 };
 
+const getHomeJobs = async (query) => {
+    let {
+        page = 1,
+        limit = 20,
+        sections,
+    } = query;
+
+    page = Number(page);
+    limit = Number(limit);
+
+    const filter = {
+        isActive: true,
+    };
+
+    if (sections) {
+        filter.sections = {
+            $in: [sections],
+        };
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [jobs, total] = await Promise.all([
+        Job.find(filter)
+            .select(
+                "title slug organization shortDescription totalPosts applicationStatus sections publishedAt"
+            )
+            .sort({ publishedAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean(),
+
+        Job.countDocuments(filter),
+    ]);
+
+    return {
+        jobs,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+        },
+    };
+};
+const getJobDetails = async (id) => {
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new ApiError(400, "Invalid Job Id.");
+    }
+
+    const job = await Job.findById(id)
+        .populate("category", "name slug")
+        .populate("department", "name slug")
+        .lean();
+
+    if (!job) {
+        throw new ApiError(404, "Job not found.");
+    }
+
+    return job;
+};
+
 module.exports = {
     createJob,
     getJobs,
     getJobBySlug,
     updateJob,
     deleteJob,
+    getHomeJobs,getJobDetails
 };

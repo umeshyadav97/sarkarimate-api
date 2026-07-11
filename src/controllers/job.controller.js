@@ -62,10 +62,35 @@ const deleteJob = catchAsync(async (req, res) => {
         .json(new ApiResponse("Job deleted successfully."));
 });
 
+/**
+ * @desc Home Jobs
+ * @route GET /api/v1/jobs/home
+ */
+const getHomeJobs = catchAsync(async (req, res) => {
+    const result = await JobService.getHomeJobs(req.query);
+
+    return res
+        .status(200)
+        .json(new ApiResponse("Home jobs fetched successfully.", result));
+});
+
+/**
+ * @desc Get Job Details
+ * @route GET /api/v1/jobs/details/:id
+ */
+const getJobDetails = catchAsync(async (req, res) => {
+    const result = await JobService.getJobDetails(req.params.id);
+
+    return res.status(200).json(
+        new ApiResponse("Job details fetched successfully.", result)
+    );
+});
+
 module.exports = {
     createJob,
     getJobs,
     getJobBySlug,
     updateJob,
     deleteJob,
+    getHomeJobs,getJobDetails
 };
