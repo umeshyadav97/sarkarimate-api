@@ -1,156 +1,204 @@
+const parseBasic = require("./parsers/basic.parser");
+const parseDates = require("./parsers/dates.parser");
+const parseLinks = require("./parsers/links.parser");
+const parseVacancies = require("./parsers/tableVacancy.parser");
+const parseAge = require("./parsers/age.parser");
+const parseFee = require("./parsers/fee.parser");
+const parseSelection = require("./parsers/selection.parser");
+const parseSalary = require("./parsers/salary.parser");
+const parseSections = require("./parsers/sections.parser");
+const parseEligibility = require("./parsers/eligibility.parser");
+
 module.exports.mapJob = function (detail) {
-    const job = {
-        title: detail.title,
+
+    //--------------------------------
+    // Extract Sections
+    //--------------------------------
+
+    const sections = parseSections(detail);
+
+   
+
+console.log("--------------------------------");
+console.log("DATES:\n", sections.dates);
+console.log("--------------------------------");
+console.log("FEE:\n", sections.fee);
+console.log("--------------------------------");
+console.log("AGE:\n", sections.age);
+console.log("--------------------------------");
+console.log("VACANCY:\n", sections.vacancy);
+console.log("--------------------------------");
+
+    //--------------------------------
+    // Parse Data
+    //--------------------------------
+
+    const basic = parseBasic(detail);
+
+    const dates = parseDates(sections.dates || "");
+
+    const links = parseLinks(detail);
+
+    const vacancy = parseVacancies(detail);
+    const eligibility = parseEligibility(detail);
+    console.log("========== PARSED eligibility ==========");
+console.log(eligibility);
+console.log("====================================");
+
+    const age = parseAge(sections.age || "");
+
+    const fee = parseFee(sections.fee || "");
+
+    const selection = parseSelection(sections.selection || "");
+
+    const salary = parseSalary(sections.salary || "");
+
+    detail.tables.forEach((table, index) => {
+        console.log("\n==============================");
+        console.log("TABLE:", index);
+    
+        table.rows.forEach((row) => {
+            console.log(
+                row.map(cell => cell.text).join(" | ")
+            );
+        });
+    });
+
+    //--------------------------------
+    // Final Object
+    //--------------------------------
+
+    return {
+
+        //--------------------------------
+        // Basic
+        //--------------------------------
+
+        ...basic,
+
         sourceUrl: detail.url,
+
         displaySection: detail.section,
 
-        organization: "",
-        shortDescription: "",
-        qualification: "",
-        applicationFee: "",
-        ageLimit: "",
-        totalPosts: 0,
+        notificationType:
+            detail.section === "result"
+                ? "RESULT"
+                : detail.section === "admit_card"
+                ? "ADMIT_CARD"
+                : detail.section === "answer_key"
+                ? "ANSWER_KEY"
+                : "JOB",
 
-        vacancies: [],
-        importantDates: [],
-        importantLinks: [],
+        //--------------------------------
+        // Parsed
+        //--------------------------------
 
-        applyLink: "",
-        notificationPdf: "",
-        officialWebsite: "",
+        ...dates,
+
+        ...links,
+
+        ...vacancy,
+
+        ...eligibility,
+
+        ...age,
+
+        ...fee,
+
+        ...selection,
+
+        // IMPORTANT
+        salary: salary,
+
+        //--------------------------------
+        // Status
+        //--------------------------------
+
+        sections: [detail.section],
+
+        source: "CRAWLER",
+
+        crawlStatus: "SUCCESS",
+
+        publishedAt: new Date(),
+
+        lastCrawledAt: new Date(),
+
+        isActive: true,
+
+        isFeatured: false,
+
+        isTrending: false,
+
+        views: 0,
+
+        //--------------------------------
+        // Overview
+        //--------------------------------
+
+        quickOverview: {
+
+            totalPosts: vacancy.totalPosts || 0,
+
+            qualification: vacancy.qualification || "",
+
+            minimumAge: age.minimumAge || null,
+
+            maximumAge: age.maximumAge || null,
+
+            salary:
+                salary.payScale ||
+                salary.basicPay ||
+                ""
+
+        },
+
+        //--------------------------------
+        // Search
+        //--------------------------------
+
+        searchKeywords: [
+
+            basic.title,
+
+            basic.organization,
+
+            basic.state,
+
+            vacancy.qualification,
+
+            ...(vacancy.vacancies || []).map(v => v.postName)
+
+        ].filter(Boolean),
+
+        //--------------------------------
+        // SEO
+        //--------------------------------
+
+        seo: {
+
+            metaTitle: basic.title,
+
+            metaDescription: basic.shortDescription,
+
+            keywords: [
+
+                basic.title,
+
+                basic.organization,
+
+                basic.state,
+
+                detail.section,
+
+                "Government Job",
+
+                "Sarkari Result"
+
+            ].filter(Boolean)
+
+        }
+
     };
 
-    // Convert every row into plain text
-    const allText = detail.tables.flatMap(table =>
-        table.rows.map(row => row.map(cell => cell.text).join(" "))
-    );
-
-    for (const table of detail.tables) {
-
-        for (const row of table.rows) {
-
-            const text = row.map(cell => cell.text).join(" ");
-
-            // ==========================
-            // Organization
-            // ==========================
-            if (text.includes("Name Of Post")) {
-                job.organization = row[1]?.text || "";
-            }
-
-            // ==========================
-            // Short Description
-            // ==========================
-            if (text.includes("Short Information")) {
-                job.shortDescription = row[1]?.text || "";
-            }
-
-            // ==========================
-            // Age Limit
-            // ==========================
-            if (text.includes("Age Limit")) {
-                job.ageLimit = text;
-            }
-
-            // ==========================
-            // Application Fee
-            // ==========================
-            if (
-                row.length >= 2 &&
-                row[0].text.includes("Application Fee")
-            ) {
-                job.applicationFee = row[1].text;
-            }
-
-            // ==========================
-            // Total Posts
-            // ==========================
-            if (text.includes("Vacancy Details")) {
-
-                const match = text.match(/Total\s*:?\s*(\d+)/i);
-
-                if (match) {
-                    job.totalPosts = Number(match[1]);
-                }
-            }
-
-            // ==========================
-            // Vacancy Table
-            // ==========================
-            if (
-                row.length === 3 &&
-                row[0].text !== "Post Name" &&
-                !isNaN(Number(row[1].text))
-            ) {
-                job.vacancies.push({
-                    post: row[0].text,
-                    posts: Number(row[1].text),
-                    qualification: row[2].text,
-                });
-
-                if (!job.qualification) {
-                    job.qualification = row[2].text;
-                }
-            }
-
-            // ==========================
-            // Important Links
-            // ==========================
-            if (row.length >= 2 && row[1].href) {
-
-                job.importantLinks.push({
-                    title: row[0].text,
-                    url: row[1].href,
-                });
-
-                const title = row[0].text.toLowerCase();
-
-                if (title.includes("apply")) {
-                    job.applyLink = row[1].href;
-                }
-
-                if (title.includes("notification")) {
-                    job.notificationPdf = row[1].href;
-                }
-
-                if (title.includes("official")) {
-                    job.officialWebsite = row[1].href;
-                }
-            }
-        }
-    }
-
-    // ==========================
-    // Important Dates
-    // ==========================
-    const dateRow = allText.find(t => t.includes("Important Dates"));
-
-    if (dateRow) {
-
-        const labels = [
-            "Application Begin",
-            "Last Date for Apply Online",
-            "Last Date Pay Exam Fee",
-            "Form Correction Last Date",
-            "Exam Date",
-        ];
-
-        labels.forEach(label => {
-
-            const regex = new RegExp(`${label}\\s*:?\\s*([^A-Z]+)`, "i");
-
-            const match = dateRow.match(regex);
-
-            if (match) {
-                job.importantDates.push({
-                    title: label,
-                    value: match[1].trim(),
-                });
-            }
-
-        });
-
-    }
-
-    return job;
 };

@@ -40,21 +40,13 @@ router.get(
     getHomeJobs
 );
 
-// Get All Jobs
-router.get(
-    "/",
-    getJobsValidation,
-    validateRequest,
-    getJobs
-);
+// Listings
+router.get("/", getJobs);
+router.get("/admit-cards", getJobs);
+router.get("/results", getJobs);
+router.get("/answer-keys", getJobs);
 
-// Get Single Job
-router.get(
-    "/:slug",
-    getJobBySlugValidation,
-    validateRequest,
-    getJobBySlug
-);
+router.get("/:slug", getJobBySlug);
 
 // Update Job
 router.patch(

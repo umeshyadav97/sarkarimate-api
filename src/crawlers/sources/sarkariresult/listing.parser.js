@@ -1,4 +1,5 @@
 const cheerio = require("cheerio");
+const fs = require("fs");
 
 const BASE_URL = "https://www.sarkariresult.com";
 
@@ -14,58 +15,92 @@ const INVALID_TITLES = [
     "youtube",
     "twitter",
     "whatsapp",
-    "syllabus",
-    "admission",
-    "answer key",
-    "latest jobs",
-    "latest job",
-    "results",
-    "admit card",
 ];
 
+/**
+ * Detect whether URL is a notification page
+ */
 function isNotification(url) {
-    return (
-        url.includes("/202") ||
-        url.includes("/railway/") ||
-        url.includes("/upsc/") ||
-        url.includes("/ssc/") ||
-        url.includes("/bank/") ||
-        url.includes("/bihar/") ||
-        url.includes("/upsssc/") ||
-        url.includes("/nta/") ||
-        url.includes("/mp/") ||
-        url.includes("/delhi/")
-    );
+
+    if (!url.startsWith(BASE_URL))
+        return false;
+
+    // Remove fragments & trailing slash
+    url = url.split("#")[0].replace(/\/$/, "");
+
+    // Skip static assets
+    if (
+        url.endsWith(".jpg") ||
+        url.endsWith(".jpeg") ||
+        url.endsWith(".png") ||
+        url.endsWith(".gif") ||
+        url.endsWith(".svg") ||
+        url.endsWith(".pdf") ||
+        url.endsWith(".zip")
+    ) {
+        return false;
+    }
+
+    // Skip navigation pages
+    const skip = [
+        "/contact",
+        "/about",
+        "/privacy",
+        "/terms",
+        "/search",
+        "/advertise",
+        "/login",
+        "/category",
+        "/syllabus",
+        "/admission"
+    ];
+
+    if (skip.some(x => url.includes(x)))
+        return false;
+
+    // Notification pages normally contain many path segments
+    const path = url.replace(BASE_URL, "");
+
+    return path.split("/").filter(Boolean).length >= 2;
 }
 
 const parseListingPage = ({ html, section }) => {
+
     const $ = cheerio.load(html);
+
+    fs.writeFileSync(`debug-${section}.html`, html);
+
+    console.log("Page Title:", $("title").text());
 
     const notifications = [];
     const visited = new Set();
 
-    $(".entry-content a").each((_, el) => {
-        let title = $(el).text().trim();
+    $("a[href]").each((_, el) => {
+
+        let title = $(el)
+            .text()
+            .replace(/\s+/g, " ")
+            .trim();
 
         let url = $(el).attr("href");
 
-        if (!title || !url) return;
-
-        title = title.replace(/\s+/g, " ").trim();
+        if (!title || !url)
+            return;
 
         if (url.startsWith("/")) {
             url = BASE_URL + url;
         }
 
-        if (!url.startsWith(BASE_URL)) return;
+        url = url.split("#")[0].replace(/\/$/, "");
 
-        if (!isNotification(url)) return;
+        if (!isNotification(url))
+            return;
 
-        const lower = title.toLowerCase();
+        if (INVALID_TITLES.includes(title.toLowerCase()))
+            return;
 
-        if (INVALID_TITLES.some((x) => lower.includes(x))) return;
-
-        if (visited.has(url)) return;
+        if (visited.has(url))
+            return;
 
         visited.add(url);
 
@@ -74,6 +109,21 @@ const parseListingPage = ({ html, section }) => {
             url,
             section,
         });
+
+    });
+
+    console.log(
+        `📌 ${section} -> ${notifications.length} notifications found`
+    );
+
+    // Debug first 10 notifications
+    console.log("\nFirst 10 Notifications:");
+
+    notifications.slice(0, 10).forEach((item, i) => {
+
+        console.log(`${i + 1}. ${item.title}`);
+        console.log(item.url);
+
     });
 
     return notifications;

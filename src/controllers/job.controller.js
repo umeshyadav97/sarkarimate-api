@@ -18,13 +18,37 @@ const createJob = catchAsync(async (req, res) => {
  * @desc    Get All Jobs
  * @route   GET /api/v1/jobs
  */
-const getJobs = catchAsync(async (req, res) => {
-    const result = await JobService.getJobs(req.query);
+const getJobs = async (req, res) => {
+    try {
 
-    return res
-        .status(200)
-        .json(new ApiResponse("Jobs fetched successfully.", result));
-});
+        let sections = "latest_job";
+
+        if (req.path === "/admit-cards") {
+            sections = "admit_card";
+        } else if (req.path === "/results") {
+            sections = "result";
+        } else if (req.path === "/answer-keys") {
+            sections = "answer_key";
+        }
+
+        const data = await JobService.getJobs({
+            ...req.query,
+            sections,
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Jobs fetched successfully.",
+            data,
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
 
 /**
  * @desc    Get Job By Slug

@@ -37,11 +37,17 @@ async function start() {
         let notifications = [];
 
         for (const page of pages) {
+
             const items = parseListingPage(page);
 
-            console.log(`✅ ${page.section} : ${items.length} notifications`);
+            console.log(
+                `✅ ${page.section} : importing ${Math.min(items.length, 50)} of ${items.length}`
+            );
 
-            notifications.push(...items);
+            notifications.push(
+                ...items.slice(0, 50)
+            );
+
         }
 
         // Remove duplicate notifications
@@ -74,14 +80,26 @@ async function start() {
 
             // Download detail page
             const detail = await getDetailPage(notification);
+            if (!detail) {
+                continue;
+            }
 
             // Convert to Job object
             const job = mapJob(detail);
 
-            job.slug = slugify(job.title, {
-                lower: true,
-                strict: true,
-            });
+            const crypto = require("crypto");
+
+            job.slug =
+                slugify(job.title, {
+                    lower: true,
+                    strict: true,
+                }) +
+                "-" +
+                crypto
+                    .createHash("md5")
+                    .update(job.sourceUrl)
+                    .digest("hex")
+                    .slice(0, 8);
 
             // Skip old jobs
             if (!shouldImport(job)) {

@@ -2,13 +2,16 @@ const mongoose = require("mongoose");
 const slugify = require("slugify");
 
 /**
+ * ==========================================
  * Important Dates
+ * ==========================================
  */
 const importantDateSchema = new mongoose.Schema(
     {
         title: {
             type: String,
             required: true,
+            trim: true,
         },
 
         date: {
@@ -21,6 +24,11 @@ const importantDateSchema = new mongoose.Schema(
             enum: ["completed", "current", "upcoming"],
             default: "upcoming",
         },
+
+        highlight: {
+            type: Boolean,
+            default: false,
+        },
     },
     {
         _id: false,
@@ -28,11 +36,16 @@ const importantDateSchema = new mongoose.Schema(
 );
 
 /**
+ * ==========================================
  * Important Links
+ * ==========================================
  */
 const importantLinkSchema = new mongoose.Schema(
     {
-        title: String,
+        title: {
+            type: String,
+            trim: true,
+        },
 
         type: {
             type: String,
@@ -40,16 +53,16 @@ const importantLinkSchema = new mongoose.Schema(
                 "apply",
                 "notification",
                 "official",
-                "admit_card",
+                "login",
                 "result",
+                "admit_card",
                 "answer_key",
                 "syllabus",
-                "merit_list",
                 "correction",
                 "exam_date",
                 "city_intimation",
                 "document_verification",
-                "login",
+                "merit_list",
                 "other",
             ],
             default: "other",
@@ -72,7 +85,59 @@ const importantLinkSchema = new mongoose.Schema(
 );
 
 /**
+ * ==========================================
+ * Application Fees
+ * ==========================================
+ */
+const applicationFeeSchema = new mongoose.Schema(
+    {
+        category: String,
+        fee: String,
+    },
+    {
+        _id: false,
+    }
+);
+
+/**
+ * ==========================================
+ * Age Relaxation
+ * ==========================================
+ */
+const ageRelaxationSchema = new mongoose.Schema(
+    {
+        category: String,
+        relaxation: String,
+    },
+    {
+        _id: false,
+    }
+);
+
+/**
+ * ==========================================
+ * Reservation
+ * ==========================================
+ */
+const reservationSchema = new mongoose.Schema(
+    {
+        UR: Number,
+        OBC: Number,
+        EWS: Number,
+        SC: Number,
+        ST: Number,
+        PH: Number,
+        Other: Number,
+    },
+    {
+        _id: false,
+    }
+);
+
+/**
+ * ==========================================
  * Vacancy Details
+ * ==========================================
  */
 const vacancySchema = new mongoose.Schema(
     {
@@ -98,11 +163,15 @@ const vacancySchema = new mongoose.Schema(
 
         qualification: String,
 
+        salary: String,
+
         lastDate: String,
 
         notificationPdf: String,
 
         applyLink: String,
+
+        reservation: reservationSchema,
     },
     {
         _id: false,
@@ -110,7 +179,51 @@ const vacancySchema = new mongoose.Schema(
 );
 
 /**
+ * ==========================================
+ * Salary
+ * ==========================================
+ */
+const salarySchema = new mongoose.Schema(
+    {
+        payLevel: String,
+
+        payScale: String,
+
+        gradePay: String,
+
+        basicPay: String,
+
+        inHandSalary: String,
+    },
+    {
+        _id: false,
+    }
+);
+
+/**
+ * ==========================================
+ * Exam Pattern
+ * ==========================================
+ */
+const examPatternSchema = new mongoose.Schema(
+    {
+        subject: String,
+
+        questions: Number,
+
+        marks: Number,
+
+        duration: String,
+    },
+    {
+        _id: false,
+    }
+);
+
+/**
+ * ==========================================
  * Selection Process
+ * ==========================================
  */
 const selectionProcessSchema = new mongoose.Schema(
     {
@@ -126,7 +239,27 @@ const selectionProcessSchema = new mongoose.Schema(
 );
 
 /**
+ * ==========================================
+ * Physical Standard
+ * ==========================================
+ */
+const physicalStandardSchema = new mongoose.Schema(
+    {
+        category: String,
+
+        male: String,
+
+        female: String,
+    },
+    {
+        _id: false,
+    }
+);
+
+/**
+ * ==========================================
  * FAQ
+ * ==========================================
  */
 const faqSchema = new mongoose.Schema(
     {
@@ -140,28 +273,19 @@ const faqSchema = new mongoose.Schema(
 );
 
 /**
+ * ==========================================
  * Timeline
+ * ==========================================
  */
 const timelineSchema = new mongoose.Schema(
     {
-        stage: {
-            type: String,
-            trim: true,
-        },
+        stage: String,
 
-        title: {
-            type: String,
-            trim: true,
-        },
+        title: String,
 
-        description: {
-            type: String,
-            trim: true,
-        },
+        description: String,
 
-        date: {
-            type: String,
-        },
+        date: String,
 
         completed: {
             type: Boolean,
@@ -173,11 +297,54 @@ const timelineSchema = new mongoose.Schema(
     }
 );
 
+/**
+ * ==========================================
+ * Dynamic Content Section
+ * Used for sections like:
+ * - Eligibility
+ * - Physical Test
+ * - Medical Test
+ * - Exam Scheme
+ * - Important Instructions
+ * ==========================================
+ */
+const contentSectionSchema = new mongoose.Schema(
+    {
+        title: {
+            type: String,
+            required: true,
+        },
+
+        content: String,
+    },
+    {
+        _id: false,
+    }
+);
+
+/**
+ * ==========================================
+ * Other Information
+ * ==========================================
+ */
+const otherInformationSchema = new mongoose.Schema(
+    {
+        title: String,
+
+        value: String,
+    },
+    {
+        _id: false,
+    }
+);
 const jobSchema = new mongoose.Schema(
     {
         /**
-         * Basic Information
+         * ==========================================
+         * BASIC INFORMATION
+         * ==========================================
          */
+
         title: {
             type: String,
             required: true,
@@ -195,18 +362,18 @@ const jobSchema = new mongoose.Schema(
             trim: true,
         },
 
-        description: String,
+        description: {
+            type: String,
+        },
 
         category: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Category",
-            required: false,
         },
 
         department: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Department",
-            required: false,
         },
 
         organization: {
@@ -219,9 +386,41 @@ const jobSchema = new mongoose.Schema(
             trim: true,
         },
 
+        city: String,
+
+        jobLocation: String,
+
+        jobType: {
+            type: String,
+            enum: [
+                "Permanent",
+                "Contract",
+                "Apprentice",
+                "Internship",
+                "Temporary",
+                "Part Time",
+                "Full Time",
+                "Other",
+            ],
+            default: "Other",
+        },
+
+        applicationMode: {
+            type: String,
+            enum: [
+                "Online",
+                "Offline",
+                "Both",
+            ],
+            default: "Online",
+        },
+
         /**
-         * Recruitment Details
+         * ==========================================
+         * RECRUITMENT DETAILS
+         * ==========================================
          */
+
         totalPosts: {
             type: Number,
             default: 0,
@@ -231,20 +430,55 @@ const jobSchema = new mongoose.Schema(
 
         qualification: String,
 
+        qualifications: [
+            {
+                postName: String,
+                qualification: String,
+            },
+        ],
+
         eligibility: [
             {
-                type: String,
+                title: {
+                    type: String,
+                    trim: true,
+                },
+                qualification: {
+                    type: String,
+                    trim: true,
+                },
             },
+        ],
+
+        whoCanApply: [
+            String,
+        ],
+
+        documentsRequired: [
+            String,
+        ],
+
+        howToApply: [
+            String,
         ],
 
         ageLimit: String,
 
-        applicationFee: String,
         minimumAge: Number,
 
         maximumAge: Number,
 
         ageAsOn: String,
+
+        ageRelaxations: [
+            ageRelaxationSchema,
+        ],
+
+        applicationFee: String,
+
+        applicationFees: [
+            applicationFeeSchema,
+        ],
 
         isFree: {
             type: Boolean,
@@ -253,83 +487,214 @@ const jobSchema = new mongoose.Schema(
 
         applicationFeeAmount: Number,
 
-        lastDate: String,
-
-        examDate: String,
-
-        resultDate: String,
-
-        admitCardDate: String,
-
-        notificationDate: String,
-
         gender: {
             type: String,
-            enum: ["Male", "Female", "Both"],
+            enum: [
+                "Male",
+                "Female",
+                "Both",
+            ],
             default: "Both",
         },
 
-        salary: String,
+        experience: String,
 
-        selectionProcess: [selectionProcessSchema],
+        nationality: String,
 
-        howToApply: [
-            {
-                type: String,
-            },
+        salary: salarySchema,
+
+        selectionProcess: [
+            selectionProcessSchema,
         ],
 
-        documentsRequired: [
-            {
-                type: String,
-            },
+        examPattern: [
+            examPatternSchema,
         ],
 
-        whoCanApply: [
-            {
-                type: String,
-            },
+        physicalStandards: [
+            physicalStandardSchema,
+        ],
+
+        medicalStandards: [
+            String,
         ],
 
         /**
-         * Important Dates
+         * ==========================================
+         * IMPORTANT DATES
+         * ==========================================
          */
-        importantDates: [importantDateSchema],
+
+        importantDates: [
+            importantDateSchema,
+        ],
+
+        notificationDate: String,
+
+        applicationStartDate: String,
+
+        lastDate: String,
+
+        lastFeeDate: String,
+
+        correctionDate: String,
+
+        examDate: String,
+
+        admitCardDate: String,
+
+        answerKeyDate: String,
+
+        resultDate: String,
+
+        interviewDate: String,
+
+        documentVerificationDate: String,
+
+        joiningDate: String,
 
         /**
-         * Important Links
+         * ==========================================
+         * IMPORTANT LINKS
+         * ==========================================
          */
-        importantLinks: [importantLinkSchema],
+
+        importantLinks: [
+            importantLinkSchema,
+        ],
+
+        applyLink: String,
+
+        notificationPdf: String,
+
+        officialWebsite: String,
+
+        loginLink: String,
+
+        answerKeyLink: String,
+
+        resultLink: String,
+
+        admitCardLink: String,
+
+        syllabusLink: String,
 
         /**
-         * Media
+         * ==========================================
+         * ABOUT SECTION
+         * ==========================================
          */
+
         image: String,
 
-        /**
-         * About
-         */
         aboutOrganization: String,
 
         aboutRecruitment: String,
 
         officialNotificationSummary: String,
 
-        faqs: [faqSchema],
+        aiSummary: String,
 
         /**
-         * Tags
+         * ==========================================
+         * EXTRA CONTENT
+         * ==========================================
          */
-        tags: [
-            {
-                type: String,
-                trim: true,
-            },
+
+        contentSections: [
+            contentSectionSchema,
+        ],
+
+        otherInformation: [
+            otherInformationSchema,
         ],
 
         /**
-         * Notification Details
+         * ==========================================
+         * FAQ
+         * ==========================================
          */
+
+        faqs: [
+            faqSchema,
+        ],
+
+        /**
+         * ==========================================
+         * TIMELINE
+         * ==========================================
+         */
+
+        timeline: [
+            timelineSchema,
+        ],
+
+        /**
+         * ==========================================
+         * QUICK OVERVIEW
+         * ==========================================
+         */
+
+        quickOverview: {
+
+            totalPosts: Number,
+
+            qualification: String,
+
+            minimumAge: Number,
+
+            maximumAge: Number,
+
+            ageLimit: String,
+
+            applicationFee: String,
+
+            salary: String,
+
+            jobLocation: String,
+
+            applicationMode: String,
+
+            lastDate: String,
+        },
+
+        /**
+         * ==========================================
+         * TAGS
+         * ==========================================
+         */
+
+        tags: [
+            String,
+        ],
+
+        searchKeywords: [
+            String,
+        ],
+
+        /**
+         * ==========================================
+         * SEO
+         * ==========================================
+         */
+
+        seo: {
+
+            metaTitle: String,
+
+            metaDescription: String,
+
+            keywords: [
+                String,
+            ],
+        },
+
+        /**
+         * ==========================================
+         * SOURCE
+         * ==========================================
+         */
+
         notificationNumber: String,
 
         sourceUrl: {
@@ -340,8 +705,11 @@ const jobSchema = new mongoose.Schema(
 
         source: {
             type: String,
-            enum: ["MANUAL", "CRAWLER"],
-            default: "MANUAL",
+            enum: [
+                "MANUAL",
+                "CRAWLER",
+            ],
+            default: "CRAWLER",
         },
 
         publishedAt: {
@@ -349,9 +717,49 @@ const jobSchema = new mongoose.Schema(
             default: Date.now,
         },
 
+        lastCrawledAt: Date,
+
+        crawlStatus: {
+            type: String,
+            enum: [
+                "PENDING",
+                "SUCCESS",
+                "FAILED",
+            ],
+            default: "PENDING",
+        },
+
         /**
-         * Current Status
+         * ==========================================
+         * STATUS
+         * ==========================================
          */
+
+        notificationType: {
+
+            type: String,
+        
+            enum: [
+        
+                "JOB",
+        
+                "RESULT",
+        
+                "ADMIT_CARD",
+        
+                "ANSWER_KEY",
+        
+                "SYLLABUS",
+        
+                "ADMISSION",
+        
+                "SCHOLARSHIP"
+        
+            ],
+        
+            default: "JOB"
+        
+        },
         applicationStatus: {
             type: String,
             enum: [
@@ -365,9 +773,6 @@ const jobSchema = new mongoose.Schema(
             default: "Open",
         },
 
-        /**
-         * Homepage Sections
-         */
         sections: {
             type: [
                 {
@@ -378,59 +783,22 @@ const jobSchema = new mongoose.Schema(
                         "result",
                         "answer_key",
                         "syllabus",
+                        "admission",
+                        "scholarship",
                     ],
                 },
             ],
-            default: ["latest_job"],
+            default: [
+                "latest_job",
+            ],
         },
 
         /**
-         * Timeline
+         * ==========================================
+         * FLAGS
+         * ==========================================
          */
-        timeline: [timelineSchema],
 
-        /**
-         * SEO
-         */
-        seo: {
-            metaTitle: String,
-            metaDescription: String,
-            keywords: [String],
-        },
-
-        quickOverview: {
-            totalPosts: Number,
-            qualification: String,
-            ageLimit: String,
-            applicationFee: String,
-            gender: String,
-        },
-
-        searchKeywords: [
-            {
-                type: String,
-            },
-        ],
-
-        /**
-         * AI Summary
-         */
-        aiSummary: String,
-
-        /**
-         * Crawler
-         */
-        crawlStatus: {
-            type: String,
-            enum: ["PENDING", "SUCCESS", "FAILED"],
-            default: "PENDING",
-        },
-
-        lastCrawledAt: Date,
-
-        /**
-         * Flags
-         */
         isFeatured: {
             type: Boolean,
             default: false,
@@ -450,6 +818,7 @@ const jobSchema = new mongoose.Schema(
             type: Number,
             default: 0,
         },
+
     },
     {
         timestamps: true,
@@ -457,14 +826,17 @@ const jobSchema = new mongoose.Schema(
 );
 
 /**
- * Generate Slug
- */
+* ==========================================
+* Generate Unique Slug
+* ==========================================
+*/
 jobSchema.pre("save", function (next) {
     if (this.isModified("title")) {
         this.slug =
             slugify(this.title, {
                 lower: true,
                 strict: true,
+                trim: true,
             }) +
             "-" +
             Date.now();
@@ -474,35 +846,144 @@ jobSchema.pre("save", function (next) {
 });
 
 /**
- * Text Search
+ * ==========================================
+ * Auto Generate Quick Overview
+ * ==========================================
+ */
+jobSchema.pre("save", function (next) {
+    this.quickOverview = {
+        totalPosts: this.totalPosts,
+        qualification: this.qualification,
+        minimumAge: this.minimumAge,
+        maximumAge: this.maximumAge,
+        ageLimit: this.ageLimit,
+        applicationFee: this.applicationFee,
+        salary: this.salary?.payScale || "",
+        jobLocation: this.jobLocation,
+        applicationMode: this.applicationMode,
+        lastDate: this.lastDate,
+    };
+
+    next();
+});
+
+/**
+ * ==========================================
+ * Full Text Search
+ * ==========================================
  */
 jobSchema.index({
     title: "text",
     organization: "text",
+    description: "text",
+    qualification: "text",
     tags: "text",
+    searchKeywords: "text",
 });
 
 /**
+ * ==========================================
  * Indexes
+ * ==========================================
  */
+
+// Search Filters
 jobSchema.index({ category: 1 });
 jobSchema.index({ department: 1 });
-jobSchema.index({ publishedAt: -1 });
-jobSchema.index({ applicationStatus: 1 });
+jobSchema.index({ organization: 1 });
+jobSchema.index({ state: 1 });
 jobSchema.index({ sections: 1 });
+
+// Status
+jobSchema.index({ applicationStatus: 1 });
 jobSchema.index({ isFeatured: 1 });
 jobSchema.index({ isTrending: 1 });
-
 jobSchema.index({ isActive: 1 });
 
+// Dates
+jobSchema.index({ publishedAt: -1 });
 jobSchema.index({ lastDate: 1 });
+jobSchema.index({ applicationStartDate: 1 });
+jobSchema.index({ examDate: 1 });
+jobSchema.index({ admitCardDate: 1 });
+jobSchema.index({ resultDate: 1 });
 
+// Analytics
+jobSchema.index({ views: -1 });
+
+// Source
 jobSchema.index({ source: 1 });
+jobSchema.index({ sourceUrl: 1 });
 
-jobSchema.index({ organization: 1 });
+// Homepage
+jobSchema.index({
+    sections: 1,
+    publishedAt: -1,
+});
 
-jobSchema.index({ state: 1 });
+jobSchema.index({
+    sections: 1,
+    isFeatured: 1,
+});
 
-jobSchema.index({ publishedAt: -1, isActive: 1 });
+jobSchema.index({
+    sections: 1,
+    isTrending: 1,
+});
+
+/**
+ * ==========================================
+ * Compound Indexes
+ * ==========================================
+ */
+
+jobSchema.index({
+    isActive: 1,
+    sections: 1,
+    publishedAt: -1,
+});
+
+jobSchema.index({
+    organization: 1,
+    applicationStatus: 1,
+});
+
+jobSchema.index({
+    category: 1,
+    department: 1,
+});
+
+/**
+ * ==========================================
+ * Virtual
+ * ==========================================
+ */
+
+jobSchema.virtual("isExpired").get(function () {
+
+    if (!this.lastDate) return false;
+
+    return new Date(this.lastDate) < new Date();
+});
+
+/**
+ * ==========================================
+ * JSON Options
+ * ==========================================
+ */
+
+jobSchema.set("toJSON", {
+    virtuals: true,
+});
+
+jobSchema.set("toObject", {
+    virtuals: true,
+});
+
+/**
+ * ==========================================
+ * Export Model
+ * ==========================================
+ */
 
 module.exports = mongoose.model("Job", jobSchema);
