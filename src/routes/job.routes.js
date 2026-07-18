@@ -5,8 +5,8 @@ const {
     getJobs,
     getJobBySlug,
     updateJob,
-    deleteJob, 
-    getHomeJobs,getJobDetails
+    deleteJob,
+    getHomeJobs, getJobDetails
 } = require("../controllers/job.controller");
 
 const validateRequest = require("../middleware/validateRequest");
@@ -41,10 +41,18 @@ router.get(
 );
 
 // Listings
-router.get("/", getJobs);
-router.get("/admit-cards", getJobs);
-router.get("/results", getJobs);
-router.get("/answer-keys", getJobs);
+// router.get("/", getJobs);
+// router.get("/admit-cards", getJobs);
+// router.get("/results", getJobs);
+// router.get("/answer-keys", getJobs);
+
+router.get(
+    "/",
+    getJobsValidation,
+    validateRequest,
+    getJobs
+);
+
 
 router.get("/:slug", getJobBySlug);
 

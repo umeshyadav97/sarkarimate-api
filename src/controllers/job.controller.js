@@ -18,37 +18,44 @@ const createJob = catchAsync(async (req, res) => {
  * @desc    Get All Jobs
  * @route   GET /api/v1/jobs
  */
-const getJobs = async (req, res) => {
-    try {
+const getJobs = catchAsync(async (req, res) => {
+    const {
+        type = "jobs",
+        ...query
+    } = req.query;
 
-        let sections = "latest_job";
+    const sectionMap = {
+        jobs: "latest_job",
+        "admit-cards": "admit_card",
+        results: "result",
+        "answer-keys": "answer_key",
+    };
 
-        if (req.path === "/admit-cards") {
-            sections = "admit_card";
-        } else if (req.path === "/results") {
-            sections = "result";
-        } else if (req.path === "/answer-keys") {
-            sections = "answer_key";
-        }
+    const sections = sectionMap[type];
 
-        const data = await JobService.getJobs({
-            ...req.query,
-            sections,
-        });
-
-        return res.status(200).json({
-            success: true,
-            message: "Jobs fetched successfully.",
-            data,
-        });
-
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: error.message,
-        });
+    if (!sections) {
+        throw new ApiError(400, "Invalid job type.");
     }
-};
+
+    const data = await JobService.getJobs({
+        ...query,
+        sections,
+    });
+
+    const messages = {
+        jobs: "Latest jobs fetched successfully.",
+        "admit-cards": "Admit cards fetched successfully.",
+        results: "Results fetched successfully.",
+        "answer-keys": "Answer keys fetched successfully.",
+    };
+
+    return res.status(200).json(
+        new ApiResponse(
+            messages[type] || "Jobs fetched successfully.",
+            data
+        )
+    );
+});
 
 /**
  * @desc    Get Job By Slug
@@ -116,5 +123,5 @@ module.exports = {
     getJobBySlug,
     updateJob,
     deleteJob,
-    getHomeJobs,getJobDetails
+    getHomeJobs, getJobDetails
 };
