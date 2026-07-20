@@ -17,17 +17,6 @@ module.exports.mapJob = function (detail) {
 
     const sections = parseSections(detail);
 
-   
-
-console.log("--------------------------------");
-console.log("DATES:\n", sections.dates);
-console.log("--------------------------------");
-console.log("FEE:\n", sections.fee);
-console.log("--------------------------------");
-console.log("AGE:\n", sections.age);
-console.log("--------------------------------");
-console.log("VACANCY:\n", sections.vacancy);
-console.log("--------------------------------");
 
     //--------------------------------
     // Parse Data
@@ -41,9 +30,6 @@ console.log("--------------------------------");
 
     const vacancy = parseVacancies(detail);
     const eligibility = parseEligibility(detail);
-    console.log("========== PARSED eligibility ==========");
-console.log(eligibility);
-console.log("====================================");
 
     const age = parseAge(sections.age || "");
 
@@ -158,18 +144,15 @@ console.log("====================================");
         //--------------------------------
 
         searchKeywords: [
-
             basic.title,
-
             basic.organization,
-
             basic.state,
-
             vacancy.qualification,
-
             ...(vacancy.vacancies || []).map(v => v.postName)
-
-        ].filter(Boolean),
+        ]
+            .filter(Boolean)
+            .map(v => v.trim())
+            .filter((v, i, arr) => arr.indexOf(v) === i),
 
         //--------------------------------
         // SEO
@@ -178,25 +161,31 @@ console.log("====================================");
         seo: {
 
             metaTitle: basic.title,
-
-            metaDescription: basic.shortDescription,
-
+        
+            metaDescription:
+                (basic.shortDescription || "").substring(0, 160),
+        
             keywords: [
-
+        
                 basic.title,
-
+        
                 basic.organization,
-
+        
                 basic.state,
-
+        
                 detail.section,
-
+        
                 "Government Job",
-
-                "Sarkari Result"
-
-            ].filter(Boolean)
-
+        
+                "Latest Jobs",
+        
+                "Govt Jobs"
+        
+            ]
+                .filter(Boolean)
+                .map(v => v.trim())
+                .filter((v, i, arr) => arr.indexOf(v) === i)
+        
         }
 
     };
