@@ -1,135 +1,208 @@
+function normalize(str = "") {
+    return str
+        .toLowerCase()
+        .replace(/[^\w\s]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function cleanQualification(text = "") {
+    return text
+        .replace(/\s*Age\s*Limit\s*:.*$/i, "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
 module.exports = function parseTableVacancies(detail) {
 
-    const best = {
+    const result = {
         totalPosts: 0,
         qualification: "",
         vacancies: []
     };
 
     if (!detail.tables?.length) {
-        return best;
+        return result;
     }
 
     for (const table of detail.tables) {
-
-        if (!table.rows?.length) continue;
 
         const rows = table.rows.map(row =>
             row.map(cell => (cell.text || "").trim())
         );
 
-        //--------------------------------------
-        // Find Header
-        //--------------------------------------
-
-        let headerIndex = -1;
+        let mode = "";
+        let currentVacancy = null;
 
         for (let i = 0; i < rows.length; i++) {
 
-            const line = rows[i].join(" ").toLowerCase();
-
-            if (
-                line.includes("post name") &&
-                line.includes("total post")
-            ) {
-                headerIndex = i;
-                break;
-            }
-        }
-
-        if (headerIndex === -1) {
-            continue;
-        }
-
-        console.log("✅ Vacancy table found");
-
-        //--------------------------------------
-        // Parse Current Table
-        //--------------------------------------
-
-        const current = {
-            totalPosts: 0,
-            qualification: "",
-            vacancies: []
-        };
-
-        for (let i = headerIndex + 1; i < rows.length; i++) {
-
             const row = rows[i];
 
-            if (row.length < 3) {
-                break;
-            }
+            if (!row.length) continue;
 
-            const postName = row[0].trim();
+            const text = row.join(" ").toLowerCase();
+
+            //----------------------------------
+            // Detect vacancy header
+            //----------------------------------
 
             if (
-                !postName ||
-                /how to fill/i.test(postName) ||
-                /important links/i.test(postName) ||
-                /official website/i.test(postName) ||
-                /category wise/i.test(postName) ||
-                /physical/i.test(postName) ||
-                /selection/i.test(postName) ||
-                /exam pattern/i.test(postName)
+                text.includes("post name") &&
+                (
+                    text.includes("no. of post") ||
+                    text.includes("no of post") ||
+                    text.includes("total post")
+                )
             ) {
-                break;
+                mode = "vacancy";
+                continue;
             }
 
-            const totalPosts =
-                Number((row[1] || "").replace(/\D/g, "")) || 0;
+            //----------------------------------
+            // Detect eligibility header
+            //----------------------------------
 
-            // Ignore category-wise vacancy tables
             if (
-                row.length > 5 &&
-                totalPosts < 50
+                text.includes("post name") &&
+                text.includes("eligibility")
+            ) {
+                mode = "eligibility";
+                continue;
+            }
+
+            //----------------------------------
+            // Ignore section titles
+            //----------------------------------
+
+            if (
+                text.includes("executive branch") ||
+                text.includes("technical branch") ||
+                text.includes("education branch") ||
+                text.includes("branch (total") ||
+                text.includes("trade")
             ) {
                 continue;
             }
 
-            const qualification = row
-                .slice(2)
-                .join(" ")
-                .trim();
+            //----------------------------------
+            // VACANCIES
+            //----------------------------------
 
-            current.vacancies.push({
-                postName,
-                totalPosts,
-                qualification
-            });
+            if (mode === "vacancy") {
 
-            current.totalPosts += totalPosts;
+                if (row.length >= 2) {
+
+                    const postName = row[0];
+
+                    const totalPosts =
+                        Number(row[1].replace(/[^\d]/g, "")) || 0;
+
+                    if (postName) {
+
+                        result.vacancies.push({
+                            postName,
+                            totalPosts,
+                            qualification: ""
+                        });
+
+                        result.totalPosts += totalPosts;
+                    }
+
+                    continue;
+                }
+
+                //----------------------------------
+                // Handle rowspan rows
+                //----------------------------------
+
+                if (
+                    row.length === 1 &&
+                    result.vacancies.length
+                ) {
+
+                    const extra =
+                        Number(row[0].replace(/[^\d]/g, "")) || 0;
+
+                    if (extra) {
+
+                        const last =
+                            result.vacancies[result.vacancies.length - 1];
+
+                        last.totalPosts += extra;
+
+                        result.totalPosts += extra;
+                    }
+                }
+            }
+
+            //----------------------------------
+            // ELIGIBILITY
+            //----------------------------------
+
+            if (mode === "eligibility") {
+
+                // Normal row
+                if (row.length >= 2) {
+
+                    const postName = row[0];
+
+                    currentVacancy = result.vacancies.find(
+                        v => normalize(v.postName) === normalize(postName)
+                    );
+
+                    if (currentVacancy) {
+
+                        currentVacancy.qualification = cleanQualification(
+                            row.slice(1).join(" ")
+                        );
+
+                    }
+
+                    continue;
+                }
+
+                // Rowspan continuation
+                if (row.length === 1 && currentVacancy) {
+
+                    currentVacancy.qualification =
+                        cleanQualification(
+                            currentVacancy.qualification + " OR " + row[0]
+                        );
+
+                    continue;
+                }
+            }
         }
+    }
 
-        current.qualification = [
-            ...new Set(
-                current.vacancies
-                    .map(v => v.qualification)
-                    .filter(Boolean)
-            )
-        ].join(" | ");
+    //----------------------------------
+    // Overall qualification
+    //----------------------------------
 
-        //--------------------------------------
-        // Keep Best Table
-        //--------------------------------------
+    result.qualification = result.vacancies
+        .map(v => v.qualification)
+        .filter(Boolean)
+        .join(" | ");
 
-        if (
-            current.vacancies.length >
-            best.vacancies.length
-        ) {
-            best.totalPosts = current.totalPosts;
-            best.qualification = current.qualification;
-            best.vacancies = current.vacancies;
+    //----------------------------------
+    // Fallback total post
+    //----------------------------------
+
+    if (!result.totalPosts) {
+
+        const match = (detail.description || "").match(
+            /Total\s+Post[s]?\s*:?\s*(\d+)/i
+        );
+
+        if (match) {
+            result.totalPosts = Number(match[1]);
         }
     }
 
     console.log("=================================");
     console.log("JOB AFTER MAPPING");
-    console.log("totalPosts:", best.totalPosts);
-    console.log("qualification:", best.qualification);
-    console.log("vacancies:", best.vacancies.length);
-    console.log(JSON.stringify(best.vacancies, null, 2));
+    console.log(result);
     console.log("=================================");
 
-    return best;
+    return result;
 };

@@ -97,6 +97,25 @@ const parseTables = (html) => {
 
     console.log(`📊 Parsed ${tables.length} tables`);
 
+    console.log("\n================ TABLES ================\n");
+
+tables.forEach((table, index) => {
+
+    console.log(`\nTABLE ${index}`);
+
+    table.rows.forEach((row, i) => {
+
+        console.log(
+            `Row ${i}:`,
+            row.map(cell => cell.text)
+        );
+
+    });
+
+});
+
+console.log("\n========================================\n");
+
     return tables;
 };
 

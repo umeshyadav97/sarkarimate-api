@@ -22,17 +22,63 @@ const getDetailPage = async (notification) => {
         console.log(`   ✅ Parsed ${tables.length} tables`);
 
         //------------------------------------
-        // Extract plain text from page
+        // Extract page text
         //------------------------------------
 
         const $ = cheerio.load(html);
 
-        const description = $("body")
-            .text()
-            .replace(/\s+/g, " ")
-            .trim();
+        console.log("\n========================================");
+        console.log("PAGE TITLE:");
+        console.log($("title").text());
+
+        console.log("\n========================================");
+        console.log("BODY LENGTH:");
+        console.log($("body").text().length);
+
+        let description = "";
+
+        // Try common content containers first
+        const selectors = [
+            ".entry-content",
+            ".post-content",
+            ".single-content",
+            ".td-post-content",
+            ".content",
+            "article"
+        ];
+
+        for (const selector of selectors) {
+
+            const text = $(selector)
+                .first()
+                .text()
+                .replace(/\s+/g, " ")
+                .trim();
+
+            if (text.length > 500) {
+                description = text;
+                break;
+            }
+
+        }
+
+        // Fallback
+        if (!description) {
+
+            description = $("body")
+                .text()
+                .replace(/\s+/g, " ")
+                .trim();
+
+        }
 
         //------------------------------------
+        // Debug Output
+        //------------------------------------
+
+        console.log("\n================ DESCRIPTION START ================\n");
+        console.log(description.substring(0, 5000));
+        console.log("\n================ DESCRIPTION END ==================\n");
 
         return {
 

@@ -22,11 +22,11 @@ module.exports = function parseLinks(detail) {
 
     };
 
-    const added = new Set();
+    if (!detail.tables?.length) {
+        return result;
+    }
 
-    //--------------------------------
-    // Blocked Domains
-    //--------------------------------
+    const added = new Set();
 
     const blockedDomains = [
 
@@ -39,7 +39,6 @@ module.exports = function parseLinks(detail) {
 
         "t.me",
         "telegram.me",
-        "telegram.org",
 
         "whatsapp.com",
 
@@ -54,85 +53,59 @@ module.exports = function parseLinks(detail) {
 
         "x.com",
 
-        "tinyurl.com",
-
         "bit.ly",
-
+        "tinyurl.com",
         "goo.gl",
-
         "rb.gy"
 
     ];
 
-    //--------------------------------
-    // Blocked Words
-    //--------------------------------
-
     const blockedWords = [
 
         "telegram",
-
         "whatsapp",
-
         "android",
-
         "apple",
-
         "ios",
-
         "facebook",
-
         "instagram",
-
         "twitter",
-
         "youtube",
-
-        "tools",
-
-        "age calculator",
-
-        "pdf compress",
-
-        "signature resizer",
-
-        "remove background",
-
         "photo resizer",
-
+        "signature resizer",
+        "remove background",
         "join channel",
-
-        "mobile app"
+        "mobile app",
+        "pdf compress"
 
     ];
-
-    //--------------------------------
-    // Ignore useless titles
-    //--------------------------------
 
     const ignoredTitles = [
 
         "click",
-
         "click here",
-
         "here",
-
         "link"
 
     ];
 
-    //--------------------------------
-    // Parse Tables
-    //--------------------------------
+    //-----------------------------------------
+    // Parse every table
+    //-----------------------------------------
 
     for (const table of detail.tables) {
 
         for (const row of table.rows) {
 
+            const rowTitle = row
+                .map(c => c.text || "")
+                .join(" ")
+                .replace(/\s+/g, " ")
+                .trim();
+
             for (const cell of row) {
 
-                if (!cell.links || !cell.links.length) continue;
+                if (!cell.links?.length) continue;
 
                 for (const link of cell.links) {
 
@@ -142,47 +115,53 @@ module.exports = function parseLinks(detail) {
 
                     if (!url) continue;
 
-                    //--------------------------------
-                    // Duplicate URL
-                    //--------------------------------
+                    if (!/^https?:\/\//i.test(url))
+                        continue;
 
-                    if (added.has(url)) continue;
-
-                    //--------------------------------
-                    // Block Domains
-                    //--------------------------------
+                    if (added.has(url))
+                        continue;
 
                     const lowerUrl = url.toLowerCase();
 
                     if (
-                        blockedDomains.some(domain =>
-                            lowerUrl.includes(domain)
+                        blockedDomains.some(x =>
+                            lowerUrl.includes(x)
                         )
                     ) {
                         continue;
                     }
-
-                    //--------------------------------
-                    // Block Titles
-                    //--------------------------------
-
-                    const lowerTitle = title.toLowerCase();
 
                     if (
-                        blockedWords.some(word =>
-                            lowerTitle.includes(word)
+                        !title ||
+                        ignoredTitles.includes(title.toLowerCase())
+                    ) {
+
+                        title = rowTitle
+                            .replace(/click here/ig, "")
+                            .trim();
+
+                    }
+
+                    const lowerTitle =
+                        title.toLowerCase();
+
+                    if (
+                        blockedWords.some(x =>
+                            lowerTitle.includes(x)
                         )
                     ) {
                         continue;
                     }
-
-                    //--------------------------------
-                    // Detect Type
-                    //--------------------------------
 
                     let type = "other";
 
-                    if (lowerTitle.includes("apply")) {
+                    //--------------------------------
+
+                    if (
+                        lowerTitle.includes("apply") ||
+                        lowerTitle.includes("registration") ||
+                        lowerTitle.includes("online form")
+                    ) {
 
                         type = "apply";
                         result.applyLink = url;
@@ -190,7 +169,12 @@ module.exports = function parseLinks(detail) {
                     }
 
                     else if (
-                        lowerTitle.includes("notification")
+
+                        lowerTitle.includes("notification") ||
+                        lowerTitle.includes("advertisement") ||
+                        lowerTitle.includes("information bulletin") ||
+                        lowerTitle.includes("pdf")
+
                     ) {
 
                         type = "notification";
@@ -199,7 +183,12 @@ module.exports = function parseLinks(detail) {
                     }
 
                     else if (
-                        lowerTitle.includes("official")
+
+                        lowerTitle.includes("official") ||
+                        lowerTitle.includes("website") ||
+                        lowerTitle.includes("portal") ||
+                        lowerTitle.includes("homepage")
+
                     ) {
 
                         type = "official";
@@ -252,77 +241,8 @@ module.exports = function parseLinks(detail) {
 
                     }
 
-                    //--------------------------------
-                    // Skip useless Click Here links
-                    //--------------------------------
-
-                    if (
-                        ignoredTitles.includes(lowerTitle) &&
-                        type === "other"
-                    ) {
+                    if (type === "other")
                         continue;
-                    }
-
-                    //--------------------------------
-                    // Rename titles
-                    //--------------------------------
-
-                    if (
-                        ignoredTitles.includes(lowerTitle)
-                    ) {
-
-                        switch (type) {
-
-                            case "apply":
-                                title = "Apply Online";
-                                break;
-
-                            case "notification":
-                                title = "Download Notification";
-                                break;
-
-                            case "official":
-                                title = "Official Website";
-                                break;
-
-                            case "result":
-                                title = "Download Result";
-                                break;
-
-                            case "admit_card":
-                                title = "Download Admit Card";
-                                break;
-
-                            case "answer_key":
-                                title = "Download Answer Key";
-                                break;
-
-                            case "syllabus":
-                                title = "Download Syllabus";
-                                break;
-
-                            case "login":
-                                title = "Candidate Login";
-                                break;
-
-                            default:
-                                title = "Important Link";
-
-                        }
-
-                    }
-
-                    //--------------------------------
-                    // Skip unknown links
-                    //--------------------------------
-
-                    if (type === "other") {
-                        continue;
-                    }
-
-                    //--------------------------------
-                    // Add URL
-                    //--------------------------------
 
                     added.add(url);
 
@@ -348,6 +268,39 @@ module.exports = function parseLinks(detail) {
 
     }
 
+    //-----------------------------------------
+    // Sort Links
+    //-----------------------------------------
+
+    const order = {
+
+        apply: 1,
+
+        notification: 2,
+
+        official: 3,
+
+        result: 4,
+
+        admit_card: 5,
+
+        answer_key: 6,
+
+        syllabus: 7,
+
+        login: 8
+
+    };
+
+    result.importantLinks.sort(
+
+        (a, b) =>
+
+            (order[a.type] || 99) -
+            (order[b.type] || 99)
+
+    );
+
     return result;
 
-};
+}

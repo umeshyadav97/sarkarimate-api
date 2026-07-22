@@ -19,12 +19,12 @@ module.exports = function parseBasic(detail) {
     const paragraphs = [];
 
     //--------------------------------
-    // Read all text
+    // Read all tables
     //--------------------------------
 
-    for (const table of detail.tables) {
+    for (const table of detail.tables || []) {
 
-        for (const row of table.rows) {
+        for (const row of table.rows || []) {
 
             const text = row
                 .map(cell => cell.text)
@@ -32,9 +32,9 @@ module.exports = function parseBasic(detail) {
                 .replace(/\s+/g, " ")
                 .trim();
 
-            if (!text) continue;
-
-            paragraphs.push(text);
+            if (text) {
+                paragraphs.push(text);
+            }
 
         }
 
@@ -46,114 +46,78 @@ module.exports = function parseBasic(detail) {
 
     let description = paragraphs.join("\n");
 
-    //--------------------------------
-    // Remove Sarkari Result branding
-    //--------------------------------
-
     description = description
 
-        .replace(/Sarkari Result®/gi, "")
-
+        .replace(/Latest Posts[\s\S]*/i, "")
+        .replace(/Related Posts[\s\S]*/i, "")
+        .replace(/Join Our WhatsApp Channel[\s\S]*/i, "")
+        .replace(/Join Our Telegram Channel[\s\S]*/i, "")
+        .replace(/Sarkari Result®?/gi, "")
         .replace(/WWW\.SARKARIRESULT\.COM/gi, "")
-
         .replace(/SarkariResult\.com/gi, "")
-
-        .replace(/Join Sarkari Result Channel[\s\S]*/gi, "")
-
-        .replace(/Download Mobile Apps[\s\S]*/gi, "")
-
-        .replace(/Android Apps?/gi, "")
-
-        .replace(/Apple IOS Apps?/gi, "")
-
-        .replace(/Remove Background/gi, "")
-
-        .replace(/Sarkari Result Portal/gi, "")
-
-        .replace(/Download Mobile App/gi, "")
-
         .replace(/\s+/g, " ")
-
         .trim();
 
     job.description = description;
 
-    //--------------------------------
-    // Short Description
-    //--------------------------------
-
     job.shortDescription = description
-        .split(". ")
-        .slice(0, 3)
-        .join(". ");
+        .substring(0, 250);
 
     //--------------------------------
     // Organization
     //--------------------------------
 
-    job.organization = detectOrganization(
-        detail.title,
-        description
-    );
+    job.organization = detectOrganization(detail.title);
 
     return job;
-
 };
 
-function detectOrganization(title, description) {
+function detectOrganization(title = "") {
 
-    const text = `${title} ${description}`;
+    if (!title) return "";
 
     const patterns = [
 
-        /\bUPPSC\b/i,
+        { regex: /\bState Health Society Bihar\b/i, name: "State Health Society Bihar" },
+        { regex: /\bBihar SHS\b/i, name: "Bihar SHS" },
 
-        /\bUPSC\b/i,
+        { regex: /\bIndian Navy\b/i, name: "Indian Navy" },
+        { regex: /\bIndian Army\b/i, name: "Indian Army" },
+        { regex: /\bIndian Air Force\b/i, name: "Indian Air Force" },
 
-        /\bSSC\b/i,
+        { regex: /\bRailway Recruitment Board\b/i, name: "RRB" },
 
-        /\bMPESB\b/i,
-
-        /\bBPSC\b/i,
-
-        /\bRRB\b/i,
-
-        /\bIBPS\b/i,
-
-        /\bNTA\b/i,
-
-        /\bBHU\b/i,
-
-        /\bDSSSB\b/i,
-
-        /\bBSF\b/i,
-
-        /\bCRPF\b/i,
-
-        /\bCISF\b/i,
-
-        /\bITBP\b/i,
-
-        /\bIndian Army\b/i,
-
-        /\bIndian Navy\b/i,
-
-        /\bIndian Air Force\b/i
+        { regex: /\bUPSC\b/i, name: "UPSC" },
+        { regex: /\bUPPSC\b/i, name: "UPPSC" },
+        { regex: /\bBPSC\b/i, name: "BPSC" },
+        { regex: /\bSSC\b/i, name: "SSC" },
+        { regex: /\bIBPS\b/i, name: "IBPS" },
+        { regex: /\bNTA\b/i, name: "NTA" },
+        { regex: /\bAIIMS\b/i, name: "AIIMS" },
+        { regex: /\bRRB\b/i, name: "RRB" },
+        { regex: /\bRBI\b/i, name: "RBI" },
+        { regex: /\bLIC\b/i, name: "LIC" },
+        { regex: /\bBSF\b/i, name: "BSF" },
+        { regex: /\bCRPF\b/i, name: "CRPF" },
+        { regex: /\bCISF\b/i, name: "CISF" },
+        { regex: /\bITBP\b/i, name: "ITBP" },
+        { regex: /\bDSSSB\b/i, name: "DSSSB" },
+        { regex: /\bMPESB\b/i, name: "MPESB" },
+        { regex: /\bBHU\b/i, name: "BHU" },
+        { regex: /\bRRVUNL\b/i, name: "RRVUNL" }
 
     ];
 
     for (const pattern of patterns) {
 
-        const match = text.match(pattern);
-
-        if (match) {
-
-            return match[0];
-
+        if (pattern.regex.test(title)) {
+            return pattern.name;
         }
 
     }
 
-    return "";
+    // Fallback:
+    const words = title.split(/\s+/);
 
+    return words.slice(0, 2).join(" ");
 }

@@ -1,150 +1,195 @@
 module.exports = function parseDates(text) {
 
     const result = {
-
         applicationStartDate: "",
-
         lastDate: "",
-
         lastDatePayFee: "",
-
         correctionLastDate: "",
-
         examDate: "",
-
         admitCardDate: "",
-
         answerKeyDate: "",
-
         resultDate: "",
-
         importantDates: []
-
     };
 
     if (!text) {
         return result;
     }
 
-    //------------------------------------
-    // Clean text
-    //------------------------------------
+    //---------------------------------------
+    // Normalize
+    //---------------------------------------
 
     text = text
-        .replace(/\r/g, "")
+        .replace(/\r/g, "\n")
         .replace(/\t/g, " ")
-        .replace(/\s+/g, " ");
+        .replace(/\u00a0/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 
-    //------------------------------------
-    // Helper
-    //------------------------------------
+    //---------------------------------------
+    // Clean helper
+    //---------------------------------------
 
-    function extract(label) {
+    function clean(value = "") {
 
-        const regex = new RegExp(
-            label + "\\s*:?\\s*(.*?)(?=(Application Begin|Last Date|Pay Exam Fee|Correction|Exam Date|Admit Card|Answer Key|Result|$))",
-            "i"
-        );
-
-        const match = text.match(regex);
-
-        return match ? match[1].trim() : "";
+        return value
+            .replace(/\s+/g, " ")
+            .replace(/^:+/, "")
+            .trim();
 
     }
 
-    //------------------------------------
-    // Dates
-    //------------------------------------
+    //---------------------------------------
+    // Extract helper
+    //---------------------------------------
 
-    result.applicationStartDate = extract("Application Begin");
+    function extract(...patterns) {
 
-    result.lastDate = extract("Last Date(?: for Apply Online)?");
+        for (const regex of patterns) {
 
-    result.lastDatePayFee = extract("Pay Exam Fee(?: Last Date)?");
+            const match = text.match(regex);
 
-    result.correctionLastDate = extract("Correction(?: Last Date)?");
+            if (match) {
+                return clean(match[1]);
+            }
 
-    result.examDate = extract("Exam Date");
+        }
 
-    result.admitCardDate = extract("Admit Card Available");
+        return "";
 
-    result.answerKeyDate = extract("Answer Key Available");
+    }
 
-    result.resultDate = extract("Result");
+    //---------------------------------------
+    // Application Start
+    //---------------------------------------
 
-    //------------------------------------
+    result.applicationStartDate = extract(
+
+        /Online Apply Start Date\s*:\s*(.*?)(?=\s*(Online Apply Last Date|Apply Last Date|Last Date|Last Date For Fee Payment|Exam Date|Admit Card|Result Date|$))/i,
+
+        /Apply Start Date\s*:\s*(.*?)(?=\s*(Last Date|$))/i,
+
+        /Application Begin\s*:\s*(.*?)(?=\s*(Last Date|$))/i,
+
+        /Registration Start\s*:\s*(.*?)(?=\s*(Last Date|$))/i
+
+    );
+
+    //---------------------------------------
+    // Last Date
+    //---------------------------------------
+
+    result.lastDate = extract(
+
+        /Online Apply Last Date\s*:\s*(.*?)(?=\s*(Last Date For Fee Payment|Pay Exam Fee|Correction|Exam Date|Admit Card|Answer Key|Result Date|$))/i,
+
+        /Apply Last Date\s*:\s*(.*?)(?=\s*(Last Date For Fee Payment|Pay Exam Fee|Correction|Exam Date|Admit Card|Answer Key|Result Date|$))/i,
+
+        /Last Date\s*:\s*(.*?)(?=\s*(Last Date For Fee Payment|Pay Exam Fee|Correction|Exam Date|Admit Card|Answer Key|Result Date|$))/i,
+
+        /Closing Date\s*:\s*(.*?)(?=\s*(Exam Date|Admit Card|Result Date|$))/i
+
+    );
+
+    //---------------------------------------
+    // Fee Payment
+    //---------------------------------------
+
+    result.lastDatePayFee = extract(
+
+        /Last Date For Fee Payment\s*:\s*(.*?)(?=\s*(Correction|Exam Date|Admit Card|Answer Key|Result Date|Candidates are advised|$))/i,
+
+        /Pay Exam Fee Last Date\s*:\s*(.*?)(?=\s*(Correction|Exam Date|Admit Card|Answer Key|Result Date|$))/i,
+
+        /Fee Payment Last Date\s*:\s*(.*?)(?=\s*(Correction|Exam Date|Admit Card|Answer Key|Result Date|$))/i
+
+    );
+
+    //---------------------------------------
+    // Correction
+    //---------------------------------------
+
+    result.correctionLastDate = extract(
+
+        /Correction(?: Last)? Date\s*:\s*(.*?)(?=\s*(Exam Date|Admit Card|Answer Key|Result Date|$))/i
+
+    );
+
+    //---------------------------------------
+    // Exam Date
+    //---------------------------------------
+
+    result.examDate = extract(
+
+        /Exam Date\s*:\s*(.*?)(?=\s*(Admit Card|Answer Key|Result Date|Candidates are advised|$))/i
+
+    );
+
+    //---------------------------------------
+    // Admit Card
+    //---------------------------------------
+
+    result.admitCardDate = extract(
+
+        /Admit Card\s*:\s*(.*?)(?=\s*(Answer Key|Result Date|Candidates are advised|$))/i
+
+    );
+
+    //---------------------------------------
+    // Answer Key
+    //---------------------------------------
+
+    result.answerKeyDate = extract(
+
+        /Answer Key\s*:\s*(.*?)(?=\s*(Result Date|Candidates are advised|$))/i
+
+    );
+
+    //---------------------------------------
+    // Result Date
+    //---------------------------------------
+
+    result.resultDate = extract(
+
+        /Result Date\s*:\s*(.*?)(?=\s*(Candidates are advised|Official Website|Application Fee|Age Limit|Total Post|$))/i
+
+    );
+
+    //---------------------------------------
     // Timeline
-    //------------------------------------
+    //---------------------------------------
 
-    if (result.applicationStartDate) {
+    const fields = [
 
-        result.importantDates.push({
+        ["Application Start", result.applicationStartDate],
 
-            title: "Application Start",
+        ["Last Date", result.lastDate],
 
-            value: result.applicationStartDate
+        ["Pay Exam Fee", result.lastDatePayFee],
 
-        });
+        ["Correction", result.correctionLastDate],
 
-    }
+        ["Exam Date", result.examDate],
 
-    if (result.lastDate) {
+        ["Admit Card", result.admitCardDate],
 
-        result.importantDates.push({
+        ["Answer Key", result.answerKeyDate],
 
-            title: "Last Date",
+        ["Result", result.resultDate]
 
-            value: result.lastDate
+    ];
 
-        });
+    for (const [title, value] of fields) {
 
-    }
+        if (value) {
 
-    if (result.examDate) {
+            result.importantDates.push({
+                title,
+                value
+            });
 
-        result.importantDates.push({
-
-            title: "Exam Date",
-
-            value: result.examDate
-
-        });
-
-    }
-
-    if (result.admitCardDate) {
-
-        result.importantDates.push({
-
-            title: "Admit Card",
-
-            value: result.admitCardDate
-
-        });
-
-    }
-
-    if (result.answerKeyDate) {
-
-        result.importantDates.push({
-
-            title: "Answer Key",
-
-            value: result.answerKeyDate
-
-        });
-
-    }
-
-    if (result.resultDate) {
-
-        result.importantDates.push({
-
-            title: "Result",
-
-            value: result.resultDate
-
-        });
+        }
 
     }
 

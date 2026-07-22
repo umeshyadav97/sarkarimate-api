@@ -10,90 +10,148 @@ module.exports = function parseVacancies(detail) {
 
     };
 
-    if (!detail.tables || !detail.tables.length) {
+    if (!detail.tables?.length) {
+
         return result;
+
     }
 
-    //-----------------------------------------
-    // Find Vacancy Table
-    //-----------------------------------------
+    const qualificationSet = new Set();
 
-    let vacancyTable = null;
+    //----------------------------------------------------
+    // Scan every table
+    //----------------------------------------------------
 
     for (const table of detail.tables) {
 
-        const text = table.rows
-            .flat()
-            .map(c => c.text)
+        if (!table.rows?.length) continue;
+
+        const rows = table.rows.map(row =>
+            row.map(cell => (cell.text || "").trim())
+        );
+
+        const header = rows[0]
             .join(" ")
             .toLowerCase();
 
+        //----------------------------------------------------
+        // Ignore category tables
+        //----------------------------------------------------
+
         if (
-            text.includes("post name") &&
-            text.includes("total post")
+            header.includes("category") &&
+            !header.includes("post")
         ) {
-            vacancyTable = table;
-            break;
+            continue;
         }
+
+        //----------------------------------------------------
+        // Detect vacancy table
+        //----------------------------------------------------
+
+        if (
+            !header.includes("post") &&
+            !header.includes("trade") &&
+            !header.includes("branch")
+        ) {
+            continue;
+        }
+
+        if (
+            !(
+                header.includes("vacancy") ||
+                header.includes("total post") ||
+                header.includes("no. of post") ||
+                header.includes("no of post") ||
+                header.includes("seat")
+            )
+        ) {
+            continue;
+        }
+
+        //----------------------------------------------------
+        // Parse rows
+        //----------------------------------------------------
+
+        for (let i = 1; i < rows.length; i++) {
+
+            const row = rows[i];
+
+            if (row.length < 2) continue;
+
+            const postName = row[0].trim();
+
+            if (
+                !postName ||
+                /^total$/i.test(postName) ||
+                /^grand total$/i.test(postName)
+            ) {
+                continue;
+            }
+
+            const totalPosts =
+                Number(
+                    (row[1] || "")
+                        .replace(/[^\d]/g, "")
+                ) || 0;
+
+            if (!totalPosts) continue;
+
+            const qualification =
+                row.length >= 3
+                    ? row
+                          .slice(2)
+                          .join(" ")
+                          .trim()
+                    : "";
+
+            result.vacancies.push({
+
+                postName,
+
+                totalPosts,
+
+                qualification
+
+            });
+
+            result.totalPosts += totalPosts;
+
+            if (qualification) {
+
+                qualificationSet.add(
+                    qualification
+                );
+
+            }
+
+        }
+
     }
 
-    console.log(
-        JSON.stringify(vacancyTable, null, 2)
-        );
+    result.qualification =
+        [...qualificationSet].join(" | ");
 
-    if (!vacancyTable) {
-        return result;
-    }
+    //----------------------------------------------------
+    // Remove duplicate posts
+    //----------------------------------------------------
 
-    //-----------------------------------------
-    // Skip Header
-    //-----------------------------------------
+    const seen = new Set();
 
-    for (let i = 1; i < vacancyTable.rows.length; i++) {
+    result.vacancies =
+        result.vacancies.filter(v => {
 
-        const row = vacancyTable.rows[i];
+            const key =
+                `${v.postName}_${v.totalPosts}`;
 
-        if (row.length < 3) continue;
+            if (seen.has(key))
+                return false;
 
-        const postName = row[0].text.trim();
+            seen.add(key);
 
-        const totalPosts = Number(
-            row[1].text.replace(/\D/g, "")
-        ) || 0;
-
-        const qualification = row[2].text.trim();
-
-        result.vacancies.push({
-
-            postName,
-
-            totalPosts,
-
-            qualification
+            return true;
 
         });
-
-        result.totalPosts += totalPosts;
-
-    }
-
-    //-----------------------------------------
-    // Overall Qualification
-    //-----------------------------------------
-
-    const qualifications = [
-
-        ...new Set(
-
-            result.vacancies
-                .map(v => v.qualification)
-                .filter(Boolean)
-
-        )
-
-    ];
-
-    result.qualification = qualifications.join(" | ");
 
     return result;
 

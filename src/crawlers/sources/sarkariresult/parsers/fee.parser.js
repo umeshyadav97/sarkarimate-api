@@ -1,83 +1,141 @@
 module.exports = function parseFee(text) {
 
     const result = {
-
         applicationFees: [],
-
         applicationMode: "Online",
-
-        isFree: false,
-
+        isFree: false
     };
 
     if (!text) {
         return result;
     }
 
-    //------------------------------------------
-    // Clean text
-    //------------------------------------------
+    //-----------------------------------------
+    // Normalize
+    //-----------------------------------------
 
     text = text
-        .replace(/\r/g, "")
+        .replace(/\r/g, "\n")
         .replace(/\t/g, " ")
-        .replace(/\s+/g, " ");
+        .replace(/\u00A0/g, " ");
 
-    //------------------------------------------
-    // Extract every fee line
-    //------------------------------------------
+    //-----------------------------------------
+    // Keep only Fee section
+    //-----------------------------------------
 
-    const regex = /([A-Za-z\/() ]+?)\s*:\s*(Rs\.?\s*)?(\d+)\s*\/?-?/gi;
+    const feeMatch = text.match(
+        /Application Fee([\s\S]*?)(?=Age Limit|Important Dates|Vacancy Details|How To Fill|Mode Of Selection|$)/i
+    );
 
-    let match;
+    if (feeMatch) {
+        text = feeMatch[1];
+    }
 
-    while ((match = regex.exec(text)) !== null) {
+    //-----------------------------------------
+    // Free Application
+    //-----------------------------------------
 
-        const category = match[1].trim();
-
-        const fee = match[3];
+    if (
+        /no\s+application\s+fee/i.test(text) ||
+        /no\s+fee\s+is\s+required/i.test(text) ||
+        /application\s+fee\s*:\s*nil/i.test(text) ||
+        /application\s+fee\s*:\s*free/i.test(text) ||
+        /free\s+for\s+all\s+candidates/i.test(text)
+    ) {
 
         result.applicationFees.push({
+            category: "All Candidates",
+            fee: "0"
+        });
 
+        result.isFree = true;
+
+        return result;
+    }
+
+    //-----------------------------------------
+    // Parse line by line
+    //-----------------------------------------
+
+    const lines = text
+        .split(/\n/)
+        .map(x => x.trim())
+        .filter(Boolean);
+
+    const added = new Set();
+
+    for (const line of lines) {
+
+        if (/payment mode/i.test(line)) continue;
+
+        const match = line.match(
+            /(General|UR|OBC|EWS|SC|ST|Female|Women|PwBD|PWD|PH|Ex-Servicemen|All Candidates)(.*?)(₹|Rs\.?)?\s*(Nil|NIL|Free|\d+)/i
+        );
+
+        if (!match) continue;
+
+        let category = match[1].trim();
+
+        let fee = match[4];
+
+        if (/nil|free/i.test(fee)) {
+            fee = "0";
+        }
+
+        if (added.has(category.toLowerCase())) {
+            continue;
+        }
+
+        added.add(category.toLowerCase());
+
+        result.applicationFees.push({
             category,
-
             fee
-
         });
 
     }
 
-    //------------------------------------------
-    // Detect Free Form
-    //------------------------------------------
+    //-----------------------------------------
+    // Nothing parsed
+    //-----------------------------------------
 
-    if (
-        result.applicationFees.length &&
-        result.applicationFees.every(x => Number(x.fee) === 0)
-    ) {
+    if (!result.applicationFees.length) {
 
-        result.isFree = true;
+        const singleFee = text.match(
+            /(₹|Rs\.?)\s*(\d+)/
+        );
+
+        if (singleFee) {
+
+            result.applicationFees.push({
+                category: "All Candidates",
+                fee: singleFee[2]
+            });
+
+        }
 
     }
 
-    //------------------------------------------
-    // Remove duplicate categories
-    //------------------------------------------
+    //-----------------------------------------
+    // Free?
+    //-----------------------------------------
 
-    result.applicationFees = result.applicationFees.filter(
+    if (
+        result.applicationFees.length &&
+        result.applicationFees.every(
+            x => Number(x.fee) === 0
+        )
+    ) {
+        result.isFree = true;
+    }
 
-        (item, index, self) =>
+    //-----------------------------------------
+    // Offline
+    //-----------------------------------------
 
-            index === self.findIndex(
-
-                x =>
-
-                    x.category.toLowerCase() ===
-                    item.category.toLowerCase()
-
-            )
-
-    );
+    if (/offline/i.test(text)) {
+        result.applicationMode = "Offline";
+    }
 
     return result;
 

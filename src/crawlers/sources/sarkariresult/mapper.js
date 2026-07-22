@@ -9,6 +9,37 @@ const parseSalary = require("./parsers/salary.parser");
 const parseSections = require("./parsers/sections.parser");
 const parseEligibility = require("./parsers/eligibility.parser");
 
+/**
+ * Convert table object to plain text
+ */
+/**
+ * Convert section to text
+ */
+function getSectionText(section) {
+
+    if (!section) {
+        return "";
+    }
+
+    // Already plain text
+    if (typeof section === "string") {
+        return section;
+    }
+
+    // Table object
+    if (section.rows) {
+        return section.rows
+            .map(row =>
+                row
+                    .map(cell => cell.text || "")
+                    .join(" ")
+            )
+            .join("\n");
+    }
+
+    return "";
+}
+
 module.exports.mapJob = function (detail) {
 
     //--------------------------------
@@ -17,42 +48,43 @@ module.exports.mapJob = function (detail) {
 
     const sections = parseSections(detail);
 
-
     //--------------------------------
     // Parse Data
     //--------------------------------
 
-    const basic = parseBasic(detail);
-
-    const dates = parseDates(sections.dates || "");
-
     const links = parseLinks(detail);
-
+    const basic = parseBasic(detail);
     const vacancy = parseVacancies(detail);
-    const eligibility = parseEligibility(detail);
 
-    const age = parseAge(sections.age || "");
+const eligibility = parseEligibility(detail);
 
-    const fee = parseFee(sections.fee || "");
-
-    const selection = parseSelection(sections.selection || "");
-
-    const salary = parseSalary(sections.salary || "");
-
-    detail.tables.forEach((table, index) => {
-        console.log("\n==============================");
-        console.log("TABLE:", index);
+    const dates = parseDates(
+        getSectionText(sections.dates)
+    );
     
-        table.rows.forEach((row) => {
-            console.log(
-                row.map(cell => cell.text).join(" | ")
-            );
-        });
-    });
+    const age = parseAge(
+        getSectionText(sections.age)
+    );
+    
+    const fee = parseFee(
+        getSectionText(sections.fee)
+    );
+    
+    const selection = parseSelection(
+        getSectionText(sections.selection)
+    );
+    
+    const salary = parseSalary(
+        getSectionText(sections.salary)
+    );
 
     //--------------------------------
     // Final Object
     //--------------------------------
+
+    console.log("DATES =>", sections.dates);
+console.log("FEE =>", sections.fee);
+console.log("AGE =>", sections.age);
 
     return {
 
@@ -93,8 +125,7 @@ module.exports.mapJob = function (detail) {
 
         ...selection,
 
-        // IMPORTANT
-        salary: salary,
+        salary,
 
         //--------------------------------
         // Status
@@ -144,12 +175,23 @@ module.exports.mapJob = function (detail) {
         //--------------------------------
 
         searchKeywords: [
+
             basic.title,
+        
             basic.organization,
+        
             basic.state,
-            vacancy.qualification,
-            ...(vacancy.vacancies || []).map(v => v.postName)
+        
+            ...(eligibility.qualifications || []).map(
+                q => q.qualification
+            ),
+        
+            ...(vacancy.vacancies || []).map(
+                v => v.postName
+            )
+        
         ]
+            .flat()
             .filter(Boolean)
             .map(v => v.trim())
             .filter((v, i, arr) => arr.indexOf(v) === i),
@@ -161,32 +203,63 @@ module.exports.mapJob = function (detail) {
         seo: {
 
             metaTitle: basic.title,
-        
+
             metaDescription:
                 (basic.shortDescription || "").substring(0, 160),
+
+                keywords: [
+
+                    basic.title,
+                
+                    basic.organization,
+                
+                    basic.state,
+                
+                    ...(vacancy.vacancies || []).map(v => v.postName),
+                
+                    ...(eligibility.qualifications || []).map(
+                        q => q.qualification
+                    ),
+                
+                    detail.section,
+                
+                    "Government Job",
+                
+                    "Latest Jobs",
+                
+                    "Govt Jobs"
+                
+                ]
+                    .flat()
+                    .filter(Boolean)
+                    .map(v => v.trim())
+                    .filter((v, i, arr) => arr.indexOf(v) === i)
+
+        },
+
+        quickOverview: {
+
+            totalPosts: vacancy.totalPosts || 0,
         
-            keywords: [
+            qualification:
+                vacancy.qualification ||
+                (eligibility.qualifications || [])
+                    .map(q => q.qualification)
+                    .join(" | "),
         
-                basic.title,
+            qualificationCount:
+                (eligibility.qualifications || []).length,
         
-                basic.organization,
+            minimumAge: age.minimumAge || null,
         
-                basic.state,
+            maximumAge: age.maximumAge || null,
         
-                detail.section,
+            salary:
+                salary.payScale ||
+                salary.basicPay ||
+                ""
         
-                "Government Job",
-        
-                "Latest Jobs",
-        
-                "Govt Jobs"
-        
-            ]
-                .filter(Boolean)
-                .map(v => v.trim())
-                .filter((v, i, arr) => arr.indexOf(v) === i)
-        
-        }
+        },
 
     };
 

@@ -4,82 +4,115 @@ module.exports = function parseSections(detail) {
         .replace(/\s+/g, " ")
         .trim();
 
-    const result = {};
-
-    const sections = [
-
+    const sectionConfig = [
         {
             key: "dates",
-            heading: "Important Dates"
+            patterns: [
+                "Important Dates",
+                "Important Date"
+            ]
         },
-
         {
             key: "fee",
-            heading: "Application Fee"
+            patterns: [
+                "Application Fee",
+                "Application Fees",
+                "Fee Details"
+            ]
         },
-
         {
             key: "age",
-            heading: "Age Limit"
+            patterns: [
+                "Age Limit",
+                "Age Limits",
+                "Age Criteria"
+            ]
         },
-
         {
             key: "vacancy",
-            heading: "Vacancy Details"
+            patterns: [
+                "Vacancy Details",
+                "Post Details",
+                "Vacancy Detail"
+            ]
         },
-
         {
             key: "selection",
-            heading: "Selection Process"
+            patterns: [
+                "Selection Process",
+                "Mode Of Selection",
+                "Selection Procedure"
+            ]
         },
-
         {
             key: "salary",
-            heading: "Pay Scale"
+            patterns: [
+                "Pay Scale",
+                "Salary Details",
+                "Salary",
+                "Pay Level"
+            ]
         },
-
         {
             key: "links",
-            heading: "Some Useful Important Links"
+            patterns: [
+                "Some Useful Important Links",
+                "Important Links",
+                "Useful Important Links"
+            ]
         }
-
     ];
 
-    for (let i = 0; i < sections.length; i++) {
+    const positions = [];
 
-        const current = sections[i];
+    for (const section of sectionConfig) {
 
-        const start = text.indexOf(current.heading);
+        let start = -1;
 
-        if (start === -1) {
+        for (const pattern of section.patterns) {
 
-            result[current.key] = "";
+            const index = text.indexOf(pattern);
 
-            continue;
+            if (index !== -1) {
 
-        }
-
-        let end = text.length;
-
-        for (let j = i + 1; j < sections.length; j++) {
-
-            const next = text.indexOf(
-                sections[j].heading,
-                start + current.heading.length
-            );
-
-            if (next !== -1) {
-
-                end = next;
-
-                break;
+                if (start === -1 || index < start) {
+                    start = index;
+                }
 
             }
 
         }
 
+        if (start !== -1) {
+
+            positions.push({
+                key: section.key,
+                start
+            });
+
+        }
+
+    }
+
+    positions.sort((a, b) => a.start - b.start);
+
+    const result = {};
+
+    for (const section of sectionConfig) {
+        result[section.key] = "";
+    }
+
+    for (let i = 0; i < positions.length; i++) {
+
+        const current = positions[i];
+
+        const end =
+            i + 1 < positions.length
+                ? positions[i + 1].start
+                : text.length;
+
         result[current.key] = text
-            .substring(start, end)
+            .substring(current.start, end)
             .trim();
 
     }

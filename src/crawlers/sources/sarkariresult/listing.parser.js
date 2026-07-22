@@ -1,7 +1,7 @@
 const cheerio = require("cheerio");
 const fs = require("fs");
 
-const BASE_URL = "https://www.sarkariresult.com";
+const { BASE_URL } = require("./constants");
 
 const INVALID_TITLES = [
     "home",
@@ -22,46 +22,50 @@ const INVALID_TITLES = [
  */
 function isNotification(url) {
 
-    if (!url.startsWith(BASE_URL))
-        return false;
+    if (!url) return false;
 
-    // Remove fragments & trailing slash
-    url = url.split("#")[0].replace(/\/$/, "");
+    try {
 
-    // Skip static assets
-    if (
-        url.endsWith(".jpg") ||
-        url.endsWith(".jpeg") ||
-        url.endsWith(".png") ||
-        url.endsWith(".gif") ||
-        url.endsWith(".svg") ||
-        url.endsWith(".pdf") ||
-        url.endsWith(".zip")
-    ) {
+        // Remove anchor and trailing slash
+        url = url.split("#")[0].replace(/\/$/, "");
+
+        const parsed = new URL(url);
+
+        // Accept both www and non-www
+        const hostname = parsed.hostname.replace(/^www\./, "");
+
+        if (hostname !== "sarkariresult.com.cm") {
+            return false;
+        }
+
+        // Get page slug
+        const slug = parsed.pathname.replace(/^\/|\/$/g, "");
+
+        // Ignore listing pages
+        const skip = new Set([
+            "",
+            "latest-jobs",
+            "result",
+            "admit-card",
+            "answer-key",
+            "syllabus",
+            "admission",
+            "contact",
+            "privacy-policy",
+            "disclaimer",
+            "latest-posts"
+        ]);
+
+        if (skip.has(slug)) {
+            return false;
+        }
+
+        // Notification pages contain only one path segment
+        return !slug.includes("/");
+
+    } catch (err) {
         return false;
     }
-
-    // Skip navigation pages
-    const skip = [
-        "/contact",
-        "/about",
-        "/privacy",
-        "/terms",
-        "/search",
-        "/advertise",
-        "/login",
-        "/category",
-        "/syllabus",
-        "/admission"
-    ];
-
-    if (skip.some(x => url.includes(x)))
-        return false;
-
-    // Notification pages normally contain many path segments
-    const path = url.replace(BASE_URL, "");
-
-    return path.split("/").filter(Boolean).length >= 2;
 }
 
 const parseListingPage = ({ html, section }) => {
@@ -87,13 +91,21 @@ const parseListingPage = ({ html, section }) => {
         if (!title || !url)
             return;
 
+        // Convert relative URLs to absolute
         if (url.startsWith("/")) {
-            url = BASE_URL + url;
+            url = new URL(url, BASE_URL).href;
         }
 
+        // Normalize
         url = url.split("#")[0].replace(/\/$/, "");
 
-        if (!isNotification(url))
+        const valid = isNotification(url);
+
+        console.log("TITLE:", title);
+        console.log("URL:", url);
+        console.log("VALID:", valid);
+
+        if (!valid)
             return;
 
         if (INVALID_TITLES.includes(title.toLowerCase()))
@@ -112,18 +124,13 @@ const parseListingPage = ({ html, section }) => {
 
     });
 
-    console.log(
-        `📌 ${section} -> ${notifications.length} notifications found`
-    );
+    console.log(`📌 ${section} -> ${notifications.length} notifications found`);
 
-    // Debug first 10 notifications
     console.log("\nFirst 10 Notifications:");
 
     notifications.slice(0, 10).forEach((item, i) => {
-
         console.log(`${i + 1}. ${item.title}`);
         console.log(item.url);
-
     });
 
     return notifications;
