@@ -98,6 +98,7 @@ const getJobsValidation = [
             "admit-cards",
             "results",
             "answer-keys",
+            "syllabus",
         ])
         .withMessage("Invalid job type"),
 ];
