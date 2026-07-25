@@ -119,10 +119,24 @@ const getJobs = async (query) => {
     // Sorting
     //----------------------------------------
 
-    let sortQuery = {
-        publishedAt: -1,
-    };
 
+    let sortQuery;
+
+    // Default sorting
+    if (sections === "latest_job") {
+        // Latest Jobs: latest application deadline first
+        sortQuery = {
+            lastDateObj: -1,
+            publishedAt: -1,
+        };
+    } else {
+        // Admit Cards, Results, Answer Keys
+        sortQuery = {
+            publishedAt: -1,
+        };
+    }
+
+    // Override if user explicitly requests a sort
     switch (sort) {
 
         case "oldest":
@@ -143,6 +157,7 @@ const getJobs = async (query) => {
                 publishedAt: -1,
             };
             break;
+
     }
 
     //----------------------------------------
@@ -323,16 +338,15 @@ const getHomeJobs = async () => {
             isActive: true,
             sections: "latest_job"
         })
-        .select(
-            "title slug organization totalPosts applicationStatus lastDate publishedAt lastDateObj lastDatePriority"
-        )
-        .sort({
-            lastDatePriority: 1,
-            lastDateObj: 1,
-            publishedAt: -1
-        })
-        .limit(10)
-        .lean(),
+            .select(
+                "title slug organization totalPosts applicationStatus lastDate publishedAt lastDateObj lastDatePriority"
+            )
+            .sort({
+                lastDateObj: -1,
+                publishedAt: -1
+            })
+            .limit(10)
+            .lean(),
 
         //----------------------------------------
         // Results
@@ -552,7 +566,7 @@ const getHomeJobs = async () => {
 
             answerKeys: totalAnswerKeys,
 
-            activeUsers:"1000+"
+            activeUsers: "1000+"
 
         }
 
@@ -583,5 +597,5 @@ module.exports = {
     getJobBySlug,
     updateJob,
     deleteJob,
-    getHomeJobs,getJobDetails
+    getHomeJobs, getJobDetails
 };

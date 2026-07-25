@@ -1,8 +1,6 @@
 const JobService = require("../services/job.service");
 const catchAsync = require("../utils/catchAsync");
 const ApiResponse = require("../utils/Apiresponse");
-const ApiError = require("../utils/ApiError");
-const syllabusSeed = require("../data/syllabus.seed");
 
 /**
  * @desc    Create Job
@@ -31,17 +29,12 @@ const getJobs = catchAsync(async (req, res) => {
         "admit-cards": "admit_card",
         results: "result",
         "answer-keys": "answer_key",
-        syllabus: "syllabus",
     };
 
     const sections = sectionMap[type];
 
     if (!sections) {
         throw new ApiError(400, "Invalid job type.");
-    }
-
-    if (type === "syllabus") {
-        return res.status(200).json(syllabusSeed);
     }
 
     const data = await JobService.getJobs({
@@ -54,7 +47,6 @@ const getJobs = catchAsync(async (req, res) => {
         "admit-cards": "Admit cards fetched successfully.",
         results: "Results fetched successfully.",
         "answer-keys": "Answer keys fetched successfully.",
-        syllabus: "Syllabus guides fetched successfully.",
     };
 
     return res.status(200).json(
