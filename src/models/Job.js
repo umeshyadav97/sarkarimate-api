@@ -263,9 +263,17 @@ const physicalStandardSchema = new mongoose.Schema(
  */
 const faqSchema = new mongoose.Schema(
     {
-        question: String,
+        question: {
+            type: String,
+            required: true,
+            trim: true,
+        },
 
-        answer: String,
+        answer: {
+            type: String,
+            required: true,
+            trim: true,
+        },
     },
     {
         _id: false,
@@ -534,6 +542,16 @@ const jobSchema = new mongoose.Schema(
         applicationStartDate: String,
 
         lastDate: String,
+
+        lastDateObj: {
+            type: Date,
+            default: null,
+        },
+        
+        lastDatePriority: {
+            type: Number,
+            default: 99,
+        },
 
         lastFeeDate: String,
 
@@ -902,7 +920,10 @@ jobSchema.index({ isActive: 1 });
 
 // Dates
 jobSchema.index({ publishedAt: -1 });
-jobSchema.index({ lastDate: 1 });
+jobSchema.index({
+    lastDatePriority: 1,
+    lastDateObj: 1,
+});
 jobSchema.index({ applicationStartDate: 1 });
 jobSchema.index({ examDate: 1 });
 jobSchema.index({ admitCardDate: 1 });
@@ -940,6 +961,8 @@ jobSchema.index({
 jobSchema.index({
     isActive: 1,
     sections: 1,
+    lastDatePriority: 1,
+    lastDateObj: 1,
     publishedAt: -1,
 });
 
@@ -961,9 +984,11 @@ jobSchema.index({
 
 jobSchema.virtual("isExpired").get(function () {
 
-    if (!this.lastDate) return false;
+    if (!this.lastDateObj)
+        return false;
 
-    return new Date(this.lastDate) < new Date();
+    return this.lastDateObj < new Date();
+
 });
 
 /**

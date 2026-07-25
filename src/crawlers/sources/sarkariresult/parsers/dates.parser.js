@@ -23,10 +23,16 @@ module.exports = function parseDates(text) {
     text = text
         .replace(/\r/g, "\n")
         .replace(/\t/g, " ")
-        .replace(/\u00a0/g, " ")
+        .replace(/\u00A0/g, " ")
         .replace(/\s+/g, " ")
         .trim();
 
+    //---------------------------------------
+    // Next field detector
+    //---------------------------------------
+
+    const NEXT_FIELD =
+    "(?=\\s*(?:Application Start Date|Online Apply Start Date|Registration Start|Application Begin|Registration Last Date|Online Apply Last Date|Apply Last Date|Last Date|Last Date For Fee Payment|Pay Exam Fee Last Date|Fee Payment Last Date|Correction(?: Last)? Date|Pre Exam Date|Mains Exam Date|Exam Date|Pre Exam Admit Card|Mains Admit Card|Main Exam Admit Card|Admit Card|Hall Ticket|Call Letter|Answer Key|Result(?: Date)?|Interview Date|Document Verification|Joining Date|Candidates are advised|Application Fee|No application fee|Age Limit|Total Post|Important Links|Official Website|$))";
     //---------------------------------------
     // Clean helper
     //---------------------------------------
@@ -36,6 +42,8 @@ module.exports = function parseDates(text) {
         return value
             .replace(/\s+/g, " ")
             .replace(/^:+/, "")
+            .replace(/^Available\s*:\s*/i, "")
+            .replace(/^Declared\s*:\s*/i, "")
             .trim();
 
     }
@@ -66,13 +74,13 @@ module.exports = function parseDates(text) {
 
     result.applicationStartDate = extract(
 
-        /Online Apply Start Date\s*:\s*(.*?)(?=\s*(Online Apply Last Date|Apply Last Date|Last Date|Last Date For Fee Payment|Exam Date|Admit Card|Result Date|$))/i,
+        new RegExp(`Online Apply Start Date\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i"),
 
-        /Apply Start Date\s*:\s*(.*?)(?=\s*(Last Date|$))/i,
+        new RegExp(`Application Start Date\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i"),
 
-        /Application Begin\s*:\s*(.*?)(?=\s*(Last Date|$))/i,
+        new RegExp(`Registration Start\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i"),
 
-        /Registration Start\s*:\s*(.*?)(?=\s*(Last Date|$))/i
+        new RegExp(`Application Begin\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i")
 
     );
 
@@ -82,13 +90,13 @@ module.exports = function parseDates(text) {
 
     result.lastDate = extract(
 
-        /Online Apply Last Date\s*:\s*(.*?)(?=\s*(Last Date For Fee Payment|Pay Exam Fee|Correction|Exam Date|Admit Card|Answer Key|Result Date|$))/i,
+        new RegExp(`Registration Last Date\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i"),
 
-        /Apply Last Date\s*:\s*(.*?)(?=\s*(Last Date For Fee Payment|Pay Exam Fee|Correction|Exam Date|Admit Card|Answer Key|Result Date|$))/i,
+        new RegExp(`Online Apply Last Date\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i"),
 
-        /Last Date\s*:\s*(.*?)(?=\s*(Last Date For Fee Payment|Pay Exam Fee|Correction|Exam Date|Admit Card|Answer Key|Result Date|$))/i,
+        new RegExp(`Apply Last Date\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i"),
 
-        /Closing Date\s*:\s*(.*?)(?=\s*(Exam Date|Admit Card|Result Date|$))/i
+        new RegExp(`Last Date\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i")
 
     );
 
@@ -98,11 +106,11 @@ module.exports = function parseDates(text) {
 
     result.lastDatePayFee = extract(
 
-        /Last Date For Fee Payment\s*:\s*(.*?)(?=\s*(Correction|Exam Date|Admit Card|Answer Key|Result Date|Candidates are advised|$))/i,
+        new RegExp(`Last Date For Fee Payment\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i"),
 
-        /Pay Exam Fee Last Date\s*:\s*(.*?)(?=\s*(Correction|Exam Date|Admit Card|Answer Key|Result Date|$))/i,
+        new RegExp(`Pay Exam Fee Last Date\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i"),
 
-        /Fee Payment Last Date\s*:\s*(.*?)(?=\s*(Correction|Exam Date|Admit Card|Answer Key|Result Date|$))/i
+        new RegExp(`Fee Payment Last Date\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i")
 
     );
 
@@ -112,7 +120,7 @@ module.exports = function parseDates(text) {
 
     result.correctionLastDate = extract(
 
-        /Correction(?: Last)? Date\s*:\s*(.*?)(?=\s*(Exam Date|Admit Card|Answer Key|Result Date|$))/i
+        new RegExp(`Correction(?: Last)? Date\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i")
 
     );
 
@@ -122,7 +130,11 @@ module.exports = function parseDates(text) {
 
     result.examDate = extract(
 
-        /Exam Date\s*:\s*(.*?)(?=\s*(Admit Card|Answer Key|Result Date|Candidates are advised|$))/i
+        new RegExp(`Pre Exam Date\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i"),
+
+        new RegExp(`Mains Exam Date\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i"),
+
+        new RegExp(`Exam Date\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i")
 
     );
 
@@ -132,7 +144,17 @@ module.exports = function parseDates(text) {
 
     result.admitCardDate = extract(
 
-        /Admit Card\s*:\s*(.*?)(?=\s*(Answer Key|Result Date|Candidates are advised|$))/i
+        new RegExp(`Pre Exam Admit Card\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i"),
+
+        new RegExp(`Mains Admit Card\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i"),
+
+        new RegExp(`Main Exam Admit Card\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i"),
+
+        new RegExp(`Admit Card\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i"),
+
+        new RegExp(`Hall Ticket\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i"),
+
+        new RegExp(`Call Letter\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i")
 
     );
 
@@ -142,17 +164,17 @@ module.exports = function parseDates(text) {
 
     result.answerKeyDate = extract(
 
-        /Answer Key\s*:\s*(.*?)(?=\s*(Result Date|Candidates are advised|$))/i
+        new RegExp(`Answer Key\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i")
 
     );
 
     //---------------------------------------
-    // Result Date
+    // Result
     //---------------------------------------
 
     result.resultDate = extract(
 
-        /Result Date\s*:\s*(.*?)(?=\s*(Candidates are advised|Official Website|Application Fee|Age Limit|Total Post|$))/i
+        new RegExp(`Result(?: Date)?\\s*:?\\s*(.*?)${NEXT_FIELD}`, "i")
 
     );
 

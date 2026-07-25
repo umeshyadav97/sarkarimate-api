@@ -4,61 +4,63 @@ module.exports = function parseSections(detail) {
         .replace(/\s+/g, " ")
         .trim();
 
+    const lowerText = text.toLowerCase();
+
     const sectionConfig = [
         {
             key: "dates",
             patterns: [
-                "Important Dates",
-                "Important Date"
+                "important dates",
+                "important date"
             ]
         },
         {
             key: "fee",
             patterns: [
-                "Application Fee",
-                "Application Fees",
-                "Fee Details"
+                "application fee",
+                "application fees",
+                "fee details"
             ]
         },
         {
             key: "age",
             patterns: [
-                "Age Limit",
-                "Age Limits",
-                "Age Criteria"
+                "age limit",
+                "age limits",
+                "age criteria"
             ]
         },
         {
             key: "vacancy",
             patterns: [
-                "Vacancy Details",
-                "Post Details",
-                "Vacancy Detail"
+                "vacancy details",
+                "post details",
+                "vacancy detail"
             ]
         },
         {
             key: "selection",
             patterns: [
-                "Selection Process",
-                "Mode Of Selection",
-                "Selection Procedure"
+                "mode of selection",
+                "selection process",
+                "selection procedure"
             ]
         },
         {
             key: "salary",
             patterns: [
-                "Pay Scale",
-                "Salary Details",
-                "Salary",
-                "Pay Level"
+                "pay scale",
+                "salary details",
+                "salary",
+                "pay level"
             ]
         },
         {
             key: "links",
             patterns: [
-                "Some Useful Important Links",
-                "Important Links",
-                "Useful Important Links"
+                "some useful important links",
+                "important links",
+                "useful important links"
             ]
         }
     ];
@@ -71,7 +73,7 @@ module.exports = function parseSections(detail) {
 
         for (const pattern of section.patterns) {
 
-            const index = text.indexOf(pattern);
+            const index = lowerText.indexOf(pattern.toLowerCase());
 
             if (index !== -1) {
 

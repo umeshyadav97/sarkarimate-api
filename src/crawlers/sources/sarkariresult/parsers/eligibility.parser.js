@@ -6,7 +6,7 @@ module.exports = function parseEligibility(detail) {
         whoCanApply: []
     };
 
-    if (!detail.tables?.length) {
+    if (!detail?.tables?.length) {
         return result;
     }
 
@@ -18,7 +18,9 @@ module.exports = function parseEligibility(detail) {
 
     for (const table of detail.tables) {
 
-        if (!table.rows?.length) continue;
+        if (!table.rows?.length) {
+            continue;
+        }
 
         const rows = table.rows.map(row =>
             row.map(cell => (cell.text || "").trim())
@@ -35,7 +37,7 @@ module.exports = function parseEligibility(detail) {
             const line = rows[i].join(" ").toLowerCase();
 
             if (
-                line.includes("post name") &&
+                line.includes("post") &&
                 (
                     line.includes("eligibility") ||
                     line.includes("qualification")
@@ -45,119 +47,105 @@ module.exports = function parseEligibility(detail) {
                 break;
             }
 
-            if (line.includes("educational qualification")) {
-                headerIndex = i;
-                break;
-            }
-
         }
 
-        if (headerIndex === -1)
+        if (headerIndex === -1) {
             continue;
+        }
 
-        const header = rows[headerIndex]
-            .join(" ")
-            .toLowerCase();
+        const header = rows[headerIndex].map(h => h.toLowerCase());
 
         //-----------------------------------------
-        // Post Name | Eligibility
+        // Detect Columns
         //-----------------------------------------
 
-        if (
-            header.includes("post name") &&
-            (
-                header.includes("eligibility") ||
-                header.includes("qualification")
-            )
-        ) {
+        const postIndex = header.findIndex(h =>
+            h.includes("post") ||
+            h.includes("trade") ||
+            h.includes("branch")
+        );
 
-            for (let i = headerIndex + 1; i < rows.length; i++) {
+        const qualificationIndex = header.findIndex(h =>
+            h.includes("eligibility") ||
+            h.includes("qualification") ||
+            h.includes("education")
+        );
 
-                const row = rows[i];
-
-                if (row.length < 2)
-                    continue;
-
-                const postName = row[0].trim();
-
-                let qualification = row
-                    .slice(1)
-                    .join(" ")
-                    .trim();
-
-                qualification = qualification.replace(
-                    /\s*Age\s*Limit\s*:.*$/i,
-                    ""
-                ).trim();
-
-                if (
-                    postName.toLowerCase() === "post name" ||
-                    qualification.toLowerCase() === "eligibility criteria"
-                ) {
-                    continue;
-                }
-                if (!postName)
-                    continue;
-
-                if (!qualification)
-                    continue;
-
-                result.eligibility.push({
-
-                    title: postName,
-
-                    qualification
-
-                });
-
-                if (!qualificationSet.has(qualification)) {
-
-                    qualificationSet.add(qualification);
-
-                    result.qualifications.push({
-
-                        title: postName,
-
-                        qualification
-
-                    });
-
-                }
-
-            }
-
+        if (postIndex === -1 || qualificationIndex === -1) {
+            continue;
         }
 
         //-----------------------------------------
-        // Qualification Table
+        // Parse Rows
         //-----------------------------------------
 
-        else if (
-            header.includes("qualification")
-        ) {
+        for (let i = headerIndex + 1; i < rows.length; i++) {
 
-            for (let i = headerIndex + 1; i < rows.length; i++) {
+            const row = rows[i];
 
-                const qualification = rows[i]
-                    .join(" ")
-                    .trim();
+            if (!row.length) {
+                continue;
+            }
 
-                if (!qualification)
-                    continue;
 
-                if (!qualificationSet.has(qualification)) {
+            const postName = (row[postIndex] || "").trim();
 
-                    qualificationSet.add(qualification);
+            let qualification = (
+                row[qualificationIndex] || ""
+            ).trim();
 
-                    result.qualifications.push({
+            qualification = qualification
+                .replace(/\s*Age\s*Limit.*$/i, "")
+                .trim();
 
-                        title: "Qualification",
+            if (
+                !postName ||
+                !qualification ||
+                /^post\s*name$/i.test(postName) ||
+                /^eligibility\s*criteria$/i.test(qualification) ||
+                /^(executive|technical|education)\s+branch$/i.test(postName)
+            ) {
+                continue;
+            }
 
-                        qualification
+            qualification = qualification
+                .replace(/\s*Age\s*Limit.*$/i, "")
+                .trim();
 
-                    });
+            if (!postName || !qualification) {
+                continue;
+            }
 
-                }
+            // Skip table headers
+            if (
+                /^post\s*name$/i.test(postName) ||
+                /^eligibility\s*criteria$/i.test(qualification)
+            ) {
+                continue;
+            }
+
+            // Skip section titles
+            if (
+                /^(executive|technical|education)\s+branch$/i.test(postName)
+            ) {
+                continue;
+            }
+
+            result.eligibility.push({
+                title: postName,
+                qualification
+            });
+
+            const key = `${postName}|${qualification}`;
+
+            if (!qualificationSet.has(key)) {
+
+                qualificationSet.add(key);
+
+                result.qualifications.push({
+                    title: postName,
+                    qualification
+                });
 
             }
 
@@ -169,35 +157,61 @@ module.exports = function parseEligibility(detail) {
     // Who Can Apply
     //-----------------------------------------
 
-    const text = (
-        detail.description || ""
-    ).toLowerCase();
+    const text = (detail.description || "").toLowerCase();
 
-    if (text.includes("all india"))
+    if (text.includes("all india")) {
         result.whoCanApply.push("All India");
+    }
 
-    if (text.includes("male"))
+    if (text.includes("male")) {
         result.whoCanApply.push("Male");
+    }
 
-    if (text.includes("female"))
+    if (text.includes("female")) {
         result.whoCanApply.push("Female");
-
-    if (
-        result.whoCanApply.includes("Male") &&
-        result.whoCanApply.includes("Female")
-    ) {
-
-        result.whoCanApply = ["Male", "Female"];
-
     }
 
     if (
         !result.whoCanApply.length &&
         text.includes("candidate")
     ) {
-
         result.whoCanApply.push("All Eligible Candidates");
+    }
 
+    if (!result.eligibility.length) {
+
+        for (const table of detail.tables || []) {
+    
+            const text = table.rows
+                .flat()
+                .map(cell => cell.text || "")
+                .join(" ")
+                .trim();
+    
+            if (/eligibility\s*criteria/i.test(text)) {
+    
+                const qualification = text
+                    .replace(/^.*?Eligibility\s*Criteria/i, "")
+                    .replace(/For More Details.*$/i, "")
+                    .trim();
+    
+                if (qualification) {
+    
+                    result.eligibility.push({
+                        title: "Eligibility",
+                        qualification
+                    });
+    
+                    result.qualifications.push({
+                        title: "Eligibility",
+                        qualification
+                    });
+    
+                }
+    
+                break;
+            }
+        }
     }
 
     return result;

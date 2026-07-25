@@ -15,16 +15,19 @@ module.exports = function parseFee(text) {
     //-----------------------------------------
 
     text = text
-        .replace(/\r/g, "\n")
+        .replace(/\r/g, " ")
+        .replace(/\n/g, " ")
         .replace(/\t/g, " ")
-        .replace(/\u00A0/g, " ");
+        .replace(/\u00A0/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 
     //-----------------------------------------
-    // Keep only Fee section
+    // Keep Fee Section
     //-----------------------------------------
 
     const feeMatch = text.match(
-        /Application Fee([\s\S]*?)(?=Age Limit|Important Dates|Vacancy Details|How To Fill|Mode Of Selection|$)/i
+        /Application Fee([\s\S]*?)(?=Age Limit|Important Dates|Vacancy Details|How To Fill|Mode Of Selection|Total Post|$)/i
     );
 
     if (feeMatch) {
@@ -36,11 +39,10 @@ module.exports = function parseFee(text) {
     //-----------------------------------------
 
     if (
-        /no\s+application\s+fee/i.test(text) ||
-        /no\s+fee\s+is\s+required/i.test(text) ||
-        /application\s+fee\s*:\s*nil/i.test(text) ||
-        /application\s+fee\s*:\s*free/i.test(text) ||
-        /free\s+for\s+all\s+candidates/i.test(text)
+        /no application fee/i.test(text) ||
+        /application fee\s*:?\s*nil/i.test(text) ||
+        /application fee\s*:?\s*free/i.test(text) ||
+        /free for all/i.test(text)
     ) {
 
         result.applicationFees.push({
@@ -51,42 +53,33 @@ module.exports = function parseFee(text) {
         result.isFree = true;
 
         return result;
+
     }
 
     //-----------------------------------------
-    // Parse line by line
+    // Parse Multiple Categories
     //-----------------------------------------
 
-    const lines = text
-        .split(/\n/)
-        .map(x => x.trim())
-        .filter(Boolean);
+    const regex =
+        /(General(?:\s*,\s*OBC(?:\s*,\s*EWS)?)?|UR(?:\s*,\s*OBC(?:\s*,\s*EWS)?)?|SC(?:\s*,\s*ST(?:\s*,\s*PH)?)?|SC(?:\s*\/\s*ST(?:\s*\/\s*PH)?)?|SC|ST|OBC|EWS|PH|PWD|PwBD|Female|Women|Ex-Servicemen|All Candidates)\s*:\s*(?:₹|Rs\.?)?\s*(\d+)/gi;
 
-    const added = new Set();
+    let match;
 
-    for (const line of lines) {
+    const seen = new Set();
 
-        if (/payment mode/i.test(line)) continue;
+    while ((match = regex.exec(text)) !== null) {
 
-        const match = line.match(
-            /(General|UR|OBC|EWS|SC|ST|Female|Women|PwBD|PWD|PH|Ex-Servicemen|All Candidates)(.*?)(₹|Rs\.?)?\s*(Nil|NIL|Free|\d+)/i
-        );
+        let category = match[1]
+            .replace(/\s+/g, " ")
+            .trim();
 
-        if (!match) continue;
+        let fee = match[2];
 
-        let category = match[1].trim();
-
-        let fee = match[4];
-
-        if (/nil|free/i.test(fee)) {
-            fee = "0";
-        }
-
-        if (added.has(category.toLowerCase())) {
+        if (seen.has(category.toLowerCase())) {
             continue;
         }
 
-        added.add(category.toLowerCase());
+        seen.add(category.toLowerCase());
 
         result.applicationFees.push({
             category,
@@ -96,20 +89,18 @@ module.exports = function parseFee(text) {
     }
 
     //-----------------------------------------
-    // Nothing parsed
+    // Fallback
     //-----------------------------------------
 
     if (!result.applicationFees.length) {
 
-        const singleFee = text.match(
-            /(₹|Rs\.?)\s*(\d+)/
-        );
+        const fees = [...text.matchAll(/(?:₹|Rs\.?)\s*(\d+)/g)];
 
-        if (singleFee) {
+        if (fees.length === 1) {
 
             result.applicationFees.push({
                 category: "All Candidates",
-                fee: singleFee[2]
+                fee: fees[0][1]
             });
 
         }
@@ -122,15 +113,13 @@ module.exports = function parseFee(text) {
 
     if (
         result.applicationFees.length &&
-        result.applicationFees.every(
-            x => Number(x.fee) === 0
-        )
+        result.applicationFees.every(f => Number(f.fee) === 0)
     ) {
         result.isFree = true;
     }
 
     //-----------------------------------------
-    // Offline
+    // Application Mode
     //-----------------------------------------
 
     if (/offline/i.test(text)) {

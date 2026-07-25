@@ -323,12 +323,16 @@ const getHomeJobs = async () => {
             isActive: true,
             sections: "latest_job"
         })
-            .select(
-                "title slug organization totalPosts applicationStatus lastDate publishedAt"
-            )
-            .sort({ publishedAt: -1 })
-            .limit(10)
-            .lean(),
+        .select(
+            "title slug organization totalPosts applicationStatus lastDate publishedAt lastDateObj lastDatePriority"
+        )
+        .sort({
+            lastDatePriority: 1,
+            lastDateObj: 1,
+            publishedAt: -1
+        })
+        .limit(10)
+        .lean(),
 
         //----------------------------------------
         // Results
@@ -480,6 +484,19 @@ const getHomeJobs = async () => {
             count: totalAnswerKeys,
             href: "/answer-key",
             type: "answer_key"
+        },
+
+        {
+            label: "Syllabus",
+            count: 10,
+            href: "/syllabus",
+            type: "syllabus"
+        },
+        {
+            label: "All Jobs",
+            count: "100+",
+            href: "/jobs",
+            type: "latest_job"
         }
 
     ];
@@ -533,7 +550,9 @@ const getHomeJobs = async () => {
 
             admitCards: totalAdmitCards,
 
-            answerKeys: totalAnswerKeys
+            answerKeys: totalAnswerKeys,
+
+            activeUsers:"1000+"
 
         }
 

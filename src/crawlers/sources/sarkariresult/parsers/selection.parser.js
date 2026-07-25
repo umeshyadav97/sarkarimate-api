@@ -13,6 +13,18 @@ module.exports = function parseSelection(text) {
     }
 
     //--------------------------------------
+    // Extract "Mode of Selection" section
+    //--------------------------------------
+
+    const match = text.match(
+        /Mode\s+of\s+Selection\s*([\s\S]*?)(?=SOME\s+USEFUL|Important\s+Links|Important\s+Question|FAQ|How\s+To\s+Fill|$)/i
+    );
+
+    if (match) {
+        text = match[1];
+    }
+
+    //--------------------------------------
     // Normalize
     //--------------------------------------
 
@@ -21,16 +33,35 @@ module.exports = function parseSelection(text) {
         .replace(/\n/g, " ")
         .replace(/\t/g, " ")
         .replace(/\u00A0/g, " ")
+        .replace(/[–—]/g, "-")
+        .replace(/[|,>]/g, " ")
+        .replace(/→/g, " ")
         .replace(/\s+/g, " ")
         .trim()
         .toLowerCase();
 
     //--------------------------------------
-    // Supported Selection Steps
-    //--------------------------------------
 
     const steps = [
-
+        {
+            title: "Pre Examination",
+            patterns: [
+                "pre examination",
+                "pre exam",
+                "preliminary examination",
+                "preliminary exam",
+                "prelims"
+            ]
+        },
+        {
+            title: "Mains Examination",
+            patterns: [
+                "mains examination",
+                "mains exam",
+                "main examination",
+                "main exam"
+            ]
+        },
         {
             title: "Computer Based Test",
             patterns: [
@@ -42,7 +73,6 @@ module.exports = function parseSelection(text) {
                 "online test"
             ]
         },
-
         {
             title: "Written Exam",
             patterns: [
@@ -51,7 +81,6 @@ module.exports = function parseSelection(text) {
                 "offline exam"
             ]
         },
-
         {
             title: "Tier I Exam",
             patterns: [
@@ -60,7 +89,6 @@ module.exports = function parseSelection(text) {
                 "tier 1"
             ]
         },
-
         {
             title: "Tier II Exam",
             patterns: [
@@ -69,7 +97,6 @@ module.exports = function parseSelection(text) {
                 "tier 2"
             ]
         },
-
         {
             title: "Physical Efficiency Test",
             patterns: [
@@ -77,7 +104,6 @@ module.exports = function parseSelection(text) {
                 "pet"
             ]
         },
-
         {
             title: "Physical Standard Test",
             patterns: [
@@ -85,7 +111,6 @@ module.exports = function parseSelection(text) {
                 "pst"
             ]
         },
-
         {
             title: "Skill Test",
             patterns: [
@@ -94,35 +119,12 @@ module.exports = function parseSelection(text) {
                 "practical test"
             ]
         },
-
         {
             title: "Typing Test",
             patterns: [
-                "typing test",
-                "typing speed"
+                "typing test"
             ]
         },
-
-        {
-            title: "SSB Interview",
-            patterns: [
-                "ssb interview",
-                "services selection board"
-            ]
-        },
-
-        {
-            title: "Interview",
-            patterns: [
-                "interview",
-                "personal interview",
-                "viva"
-            ],
-            exclude: [
-                "ssb interview"
-            ]
-        },
-
         {
             title: "Document Verification",
             patterns: [
@@ -131,7 +133,6 @@ module.exports = function parseSelection(text) {
                 "dv"
             ]
         },
-
         {
             title: "Medical Examination",
             patterns: [
@@ -140,7 +141,21 @@ module.exports = function parseSelection(text) {
                 "medical fitness"
             ]
         },
-
+        {
+            title: "Interview",
+            patterns: [
+                "interview",
+                "personal interview",
+                "viva"
+            ]
+        },
+        {
+            title: "Final Selection",
+            patterns: [
+                "final selection",
+                "selection list"
+            ]
+        },
         {
             title: "Merit List",
             patterns: [
@@ -148,95 +163,41 @@ module.exports = function parseSelection(text) {
                 "final merit"
             ]
         }
-
     ];
-
-    //--------------------------------------
-    // Detect
-    //--------------------------------------
-
-    let step = 1;
 
     const added = new Set();
 
+    let step = 1;
+
     for (const item of steps) {
 
-        const found = item.patterns.some(pattern => {
+        let found = false;
+
+        for (const pattern of item.patterns) {
 
             const regex = new RegExp(
-                `\\b${escapeRegex(pattern)}\\b`,
+                "\\b" + escapeRegex(pattern) + "\\b",
                 "i"
             );
-        
-            if (!regex.test(text)) {
-                return false;
-            }
-        
-            if (item.exclude) {
-        
-                for (const ex of item.exclude) {
-        
-                    const exRegex = new RegExp(
-                        `\\b${escapeRegex(ex)}\\b`,
-                        "i"
-                    );
-        
-                    if (exRegex.test(text)) {
-                        return false;
-                    }
-        
-                }
-        
-            }
-        
-            return true;
-        
-        });
 
-        if (!found) {
-            continue;
+            if (regex.test(text)) {
+                found = true;
+                break;
+            }
         }
 
-        if (added.has(item.title)) {
+        if (!found || added.has(item.title)) {
             continue;
         }
 
         added.add(item.title);
 
         result.selectionProcess.push({
-
             step: step++,
-
             title: item.title,
-
             description: item.title
-
         });
-
-    }
-
-    //--------------------------------------
-    // Fallback
-    //--------------------------------------
-
-    if (!result.selectionProcess.length) {
-
-        if (text.includes("selection")) {
-
-            result.selectionProcess.push({
-
-                step: 1,
-
-                title: "As Per Official Notification",
-
-                description: "Refer Official Notification"
-
-            });
-
-        }
-
     }
 
     return result;
-
 };

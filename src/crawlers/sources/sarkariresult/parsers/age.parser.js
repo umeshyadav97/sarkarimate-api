@@ -25,6 +25,7 @@ module.exports = function parseAge(text) {
     //------------------------------------
 
     text = text
+        .replace(/[–—]/g, "-")
         .replace(/\r/g, "\n")
         .replace(/\t/g, " ")
         .replace(/\u00A0/g, " ")
@@ -36,7 +37,7 @@ module.exports = function parseAge(text) {
     //------------------------------------
 
     let match = text.match(
-        /Minimum Age\s*:?\s*(\d+)/i
+        /Minimum\s+Age\s*(?:[:-])?\s*(\d+)/i
     );
 
     if (match) {
@@ -50,7 +51,7 @@ module.exports = function parseAge(text) {
     //------------------------------------
 
     match = text.match(
-        /Maximum Age\s*:?\s*(\d+)/i
+        /Maximum\s+Age\s*(?:[:-])?\s*(\d+)/i
     );
 
     if (match) {
@@ -89,7 +90,7 @@ module.exports = function parseAge(text) {
     if (result.maximumAge === null) {
 
         match = text.match(
-            /Not Exceeding\s*(\d+)/i
+            /Not\s+Exceeding\s*(\d+)/i
         );
 
         if (match) {
@@ -129,30 +130,38 @@ module.exports = function parseAge(text) {
     //------------------------------------
 
     match = text.match(
-        /Age(?: Limit)? As On\s*:?\s*([0-9\/.-]+)/i
+        /Age\s+Limits?\s+As\s+On\s*:?\s*([0-9]{1,2}\s+[A-Za-z]+\s+\d{4})/i
     );
+
+    if (!match) {
+
+        match = text.match(
+            /Age(?:\s+Limit)?\s+As\s+On\s*:?\s*([0-9]{1,2}[\/.-][0-9]{1,2}[\/.-][0-9]{4})/i
+        );
+
+    }
 
     if (match) {
 
         result.ageAsOn = match[1];
 
     }
-    else if (/As On Indian Navy Rules/i.test(text)) {
+    else if (/As\s+Per\s+Indian\s+Navy\s+Rules/i.test(text)) {
 
         result.ageAsOn = "Indian Navy Rules";
 
     }
-    else if (/As On Railway Rules/i.test(text)) {
+    else if (/As\s+Per\s+Railway\s+Rules/i.test(text)) {
 
         result.ageAsOn = "Railway Rules";
 
     }
-    else if (/As On UPSC Rules/i.test(text)) {
+    else if (/As\s+Per\s+UPSC\s+Rules/i.test(text)) {
 
         result.ageAsOn = "UPSC Rules";
 
     }
-    else if (/As On Government Rules/i.test(text)) {
+    else if (/As\s+Per\s+Government\s+Rules/i.test(text)) {
 
         result.ageAsOn = "Government Rules";
 
@@ -190,15 +199,15 @@ module.exports = function parseAge(text) {
             "i"
         );
 
-        const match = text.match(regex);
+        const found = text.match(regex);
 
-        if (match) {
+        if (found) {
 
             result.ageRelaxations.push({
 
                 category,
 
-                relaxation: match[1]
+                relaxation: found[1]
 
             });
 

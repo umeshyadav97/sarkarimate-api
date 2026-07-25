@@ -31,6 +31,7 @@ module.exports = function parseLinks(detail) {
     const blockedDomains = [
 
         "sarkariresult.com",
+        "sarkariresult.com.cm",
         "sarkariresult.tools",
         "sarkariresultportal.com",
 
@@ -39,6 +40,7 @@ module.exports = function parseLinks(detail) {
 
         "t.me",
         "telegram.me",
+        "telegram.org",
 
         "whatsapp.com",
 
@@ -89,31 +91,67 @@ module.exports = function parseLinks(detail) {
 
     ];
 
-    //-----------------------------------------
-    // Parse every table
-    //-----------------------------------------
+    //--------------------------------------------------
+    // Parse only Important Links table
+    //--------------------------------------------------
 
     for (const table of detail.tables) {
 
+        const isImportantLinksTable = table.rows.some(row => {
+
+            const title = (row[0]?.text || "").toLowerCase();
+
+            return (
+                /^apply/i.test(title) ||
+                /^check/i.test(title) ||
+                /official website/i.test(title) ||
+                /official notification/i.test(title) ||
+                /^result/i.test(title) ||
+                /admit/i.test(title) ||
+                /answer/i.test(title) ||
+                /syllabus/i.test(title) ||
+                /login/i.test(title)
+            );
+
+        });
+
+        if (!isImportantLinksTable) {
+            continue;
+        }
+
         for (const row of table.rows) {
 
-            const rowTitle = row
-                .map(c => c.text || "")
-                .join(" ")
-                .replace(/\s+/g, " ")
-                .trim();
+            const firstColumn = (row[0]?.text || "").trim();
+
+            const rowTitle = firstColumn.toLowerCase();
+
+            const validLinkRow =
+
+                /^apply/i.test(firstColumn) ||
+                /^check/i.test(firstColumn) ||
+                /official website/i.test(firstColumn) ||
+                /official notification/i.test(firstColumn) ||
+                /^result/i.test(firstColumn) ||
+                /admit/i.test(firstColumn) ||
+                /answer/i.test(firstColumn) ||
+                /syllabus/i.test(firstColumn) ||
+                /login/i.test(firstColumn);
+
+            if (!validLinkRow) {
+                continue;
+            }
 
             for (const cell of row) {
 
-                if (!cell.links?.length) continue;
+                if (!cell.links?.length)
+                    continue;
 
                 for (const link of cell.links) {
 
-                    let title = (link.text || "").trim();
-
                     const url = (link.href || "").trim();
 
-                    if (!url) continue;
+                    if (!url)
+                        continue;
 
                     if (!/^https?:\/\//i.test(url))
                         continue;
@@ -124,30 +162,25 @@ module.exports = function parseLinks(detail) {
                     const lowerUrl = url.toLowerCase();
 
                     if (
-                        blockedDomains.some(x =>
-                            lowerUrl.includes(x)
+                        blockedDomains.some(domain =>
+                            lowerUrl.includes(domain)
                         )
                     ) {
                         continue;
                     }
 
+                    let title = firstColumn || (link.text || "").trim();
+
                     if (
                         !title ||
                         ignoredTitles.includes(title.toLowerCase())
                     ) {
-
-                        title = rowTitle
-                            .replace(/click here/ig, "")
-                            .trim();
-
+                        title = firstColumn;
                     }
 
-                    const lowerTitle =
-                        title.toLowerCase();
-
                     if (
-                        blockedWords.some(x =>
-                            lowerTitle.includes(x)
+                        blockedWords.some(word =>
+                            rowTitle.includes(word)
                         )
                     ) {
                         continue;
@@ -158,9 +191,9 @@ module.exports = function parseLinks(detail) {
                     //--------------------------------
 
                     if (
-                        lowerTitle.includes("apply") ||
-                        lowerTitle.includes("registration") ||
-                        lowerTitle.includes("online form")
+                        /^apply\s*online/i.test(firstColumn) ||
+                        /^online\s*apply/i.test(firstColumn) ||
+                        /^registration/i.test(firstColumn)
                     ) {
 
                         type = "apply";
@@ -169,12 +202,7 @@ module.exports = function parseLinks(detail) {
                     }
 
                     else if (
-
-                        lowerTitle.includes("notification") ||
-                        lowerTitle.includes("advertisement") ||
-                        lowerTitle.includes("information bulletin") ||
-                        lowerTitle.includes("pdf")
-
+                        /official notification|notification|advertisement|information bulletin|pdf/i.test(firstColumn)
                     ) {
 
                         type = "notification";
@@ -183,12 +211,7 @@ module.exports = function parseLinks(detail) {
                     }
 
                     else if (
-
-                        lowerTitle.includes("official") ||
-                        lowerTitle.includes("website") ||
-                        lowerTitle.includes("portal") ||
-                        lowerTitle.includes("homepage")
-
+                        /official website|official portal|website|homepage/i.test(firstColumn)
                     ) {
 
                         type = "official";
@@ -197,7 +220,7 @@ module.exports = function parseLinks(detail) {
                     }
 
                     else if (
-                        lowerTitle.includes("result")
+                        /^result/i.test(firstColumn)
                     ) {
 
                         type = "result";
@@ -206,7 +229,7 @@ module.exports = function parseLinks(detail) {
                     }
 
                     else if (
-                        lowerTitle.includes("admit")
+                        /admit/i.test(firstColumn)
                     ) {
 
                         type = "admit_card";
@@ -215,7 +238,7 @@ module.exports = function parseLinks(detail) {
                     }
 
                     else if (
-                        lowerTitle.includes("answer")
+                        /answer/i.test(firstColumn)
                     ) {
 
                         type = "answer_key";
@@ -224,7 +247,7 @@ module.exports = function parseLinks(detail) {
                     }
 
                     else if (
-                        lowerTitle.includes("syllabus")
+                        /syllabus/i.test(firstColumn)
                     ) {
 
                         type = "syllabus";
@@ -233,7 +256,7 @@ module.exports = function parseLinks(detail) {
                     }
 
                     else if (
-                        lowerTitle.includes("login")
+                        /login/i.test(firstColumn)
                     ) {
 
                         type = "login";
@@ -268,39 +291,37 @@ module.exports = function parseLinks(detail) {
 
     }
 
-    //-----------------------------------------
-    // Sort Links
-    //-----------------------------------------
+    //------------------------------------------
+    // Fallback
+    //------------------------------------------
+
+    if (!result.applyLink && result.officialWebsite) {
+        result.applyLink = result.officialWebsite;
+    }
+
+    //------------------------------------------
+    // Sort
+    //------------------------------------------
 
     const order = {
 
         apply: 1,
-
         notification: 2,
-
         official: 3,
-
         result: 4,
-
         admit_card: 5,
-
         answer_key: 6,
-
         syllabus: 7,
-
         login: 8
 
     };
 
     result.importantLinks.sort(
-
         (a, b) =>
-
             (order[a.type] || 99) -
             (order[b.type] || 99)
-
     );
 
     return result;
 
-}
+};
