@@ -580,6 +580,7 @@ const getJobDetails = async (id) => {
     }
 
     const job = await Job.findById(id)
+        .select("-sourceUrl")
         .populate("category", "name slug")
         .populate("department", "name slug")
         .lean();

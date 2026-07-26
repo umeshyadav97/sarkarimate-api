@@ -488,6 +488,16 @@ const jobSchema = new mongoose.Schema(
             applicationFeeSchema,
         ],
 
+        feeRefund: {
+            refunds: [
+                {
+                    category: String,
+                    fee: String,
+                },
+            ],
+            description: String,
+        },
+
         isFree: {
             type: Boolean,
             default: false,

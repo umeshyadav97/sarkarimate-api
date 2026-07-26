@@ -62,6 +62,11 @@ async function start() {
         console.log("==============================\n");
 
         // Import only latest 500 (optional)
+        // const notificationsToImport = uniqueNotifications.filter(item =>
+        //     item.title.includes("RRB Junior Engineer JE Online Form 2026") ||
+        //     item.title.includes("AAI Junior Executive & Manager Online Form 2026")
+        // );
+
         const notificationsToImport = uniqueNotifications.slice(0, 500);
 
         for (const notification of notificationsToImport) {
@@ -80,12 +85,26 @@ async function start() {
 
             // Download detail page
             const detail = await getDetailPage(notification);
+
+            // console.log("\n==============================");
+            // console.log(detail.title);
+            // console.log("==============================");
+            // console.log(detail.tables);
+
             if (!detail) {
                 continue;
             }
 
             // Convert to Job object
             const job = mapJob(detail);
+
+            // console.log("\n========== APPLICATION FEES ==========");
+            // console.dir(job.applicationFees, { depth: null });
+
+            // console.log("\n========== FEE REFUND ==========");
+            // console.dir(job.feeRefund, { depth: null });
+
+            // process.exit();
 
             const crypto = require("crypto");
 
