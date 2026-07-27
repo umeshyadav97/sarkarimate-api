@@ -6,7 +6,8 @@ const {
     getJobBySlug,
     updateJob,
     deleteJob,
-    getHomeJobs, getJobDetails
+    getHomeJobs, getJobDetails, subscribe,
+    getCategories, getSubCategories
 } = require("../controllers/job.controller");
 
 const validateRequest = require("../middleware/validateRequest");
@@ -53,9 +54,6 @@ router.get(
     getJobs
 );
 
-
-router.get("/:slug", getJobBySlug);
-
 // Update Job
 router.patch(
     "/:id",
@@ -72,9 +70,21 @@ router.delete(
     deleteJob
 );
 
+router.post("/subscribe", subscribe);
+
+router.get("/category", getCategories);
+
 router.get(
     "/details/:id",
     getJobDetails
 );
+
+router.get(
+    "/sub-categories/:categoryId/",
+    getSubCategories
+);
+
+router.get("/:slug", getJobBySlug);
+
 
 module.exports = router;

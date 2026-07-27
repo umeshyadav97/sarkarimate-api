@@ -1,6 +1,13 @@
 const JobService = require("../services/job.service");
 const catchAsync = require("../utils/catchAsync");
 const ApiResponse = require("../utils/Apiresponse");
+const ApiError = require("../utils/ApiError");
+const syllabusSeed = require("../data/syllabus.seed");
+const JobSubscription = require("../models/JobSubscription");
+const SubDepartment = require("../models/SubDepartment");
+const Category = require("../models/Category");
+const Department = require("../models/Department");
+
 
 /**
  * @desc    Create Job
@@ -29,12 +36,17 @@ const getJobs = catchAsync(async (req, res) => {
         "admit-cards": "admit_card",
         results: "result",
         "answer-keys": "answer_key",
+        syllabus: "syllabus",
     };
 
     const sections = sectionMap[type];
 
     if (!sections) {
         throw new ApiError(400, "Invalid job type.");
+    }
+
+    if (sections === "syllabus") {
+        return res.status(200).json(syllabusSeed);
     }
 
     const data = await JobService.getJobs({
@@ -47,6 +59,7 @@ const getJobs = catchAsync(async (req, res) => {
         "admit-cards": "Admit cards fetched successfully.",
         results: "Results fetched successfully.",
         "answer-keys": "Answer keys fetched successfully.",
+        syllabus: "Syllabus guides fetched successfully.",
     };
 
     return res.status(200).json(
@@ -117,11 +130,96 @@ const getJobDetails = catchAsync(async (req, res) => {
     );
 });
 
+const subscribe = async (req, res) => {
+    try {
+        const { email, allCategories, category, subCategory } = req.body;
+
+        const subscription = await JobSubscription.findOneAndUpdate(
+            { email },
+            {
+                email,
+                allCategories,
+                category,
+                subCategory,
+                isActive: true,
+            },
+            {
+                upsert: true,
+                new: true,
+                runValidators: true,
+            }
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Subscription saved successfully.",
+            data: subscription,
+        });
+    } catch (err) {
+        return res.status(500).json({
+            success: false,
+            message: err.message,
+        });
+    }
+};
+const getCategories = async (req, res) => {
+    try {
+
+        const categories = await Department.find(
+            { isActive: true },
+            "name slug"
+        ).sort({ name: 1 });
+
+        return res.json({
+            success: true,
+            data: categories,
+        });
+
+    } catch (err) {
+
+        return res.status(500).json({
+            success: false,
+            message: err.message,
+        });
+
+    }
+};
+
+const getSubCategories = async (req, res) => {
+    try {
+
+        const { categoryId } = req.params;
+
+        const subCategories = await SubDepartment.find(
+            {
+                department: categoryId,
+                isActive: true,
+            },
+            "name slug"
+        ).sort({ name: 1 });
+
+        return res.json({
+            success: true,
+            data: subCategories,
+        });
+
+    } catch (err) {
+
+        return res.status(500).json({
+            success: false,
+            message: err.message,
+        });
+
+    }
+};
+
+
+
 module.exports = {
     createJob,
     getJobs,
     getJobBySlug,
     updateJob,
     deleteJob,
-    getHomeJobs, getJobDetails
+    getHomeJobs, getJobDetails, subscribe, getCategories, getSubCategories
 };
