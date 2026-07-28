@@ -1,156 +1,293 @@
+const parseBasic = require("./parsers/basic.parser");
+const parseDates = require("./parsers/dates.parser");
+const parseLinks = require("./parsers/links.parser");
+const parseVacancies = require("./parsers/tableVacancy.parser");
+const parseAge = require("./parsers/age.parser");
+const parseFee = require("./parsers/fee.parser");
+const parseSelection = require("./parsers/selection.parser");
+const parseSalary = require("./parsers/salary.parser");
+const parseSections = require("./parsers/sections.parser");
+const parseEligibility = require("./parsers/eligibility.parser");
+const parseLastDate = require("../../../utils/parseLastDate");
+const getLastDatePriority = require("../../../utils/getLastDatePriority");
+const parseFaq = require("./parsers/faq.parser");
+
+/**
+ * Convert table object to plain text
+ */
+/**
+ * Convert section to text
+ */
+function getSectionText(section) {
+
+    if (!section) {
+        return "";
+    }
+
+    // Already plain text
+    if (typeof section === "string") {
+        return section;
+    }
+
+    // Table object
+    if (section.rows) {
+        return section.rows
+            .map(row =>
+                row
+                    .map(cell => cell.text || "")
+                    .join(" ")
+            )
+            .join("\n");
+    }
+
+    return "";
+}
+
 module.exports.mapJob = function (detail) {
-    const job = {
-        title: detail.title,
-        sourceUrl: detail.url,
-        displaySection: detail.section,
 
-        organization: "",
-        shortDescription: "",
-        qualification: "",
-        applicationFee: "",
-        ageLimit: "",
-        totalPosts: 0,
+    //--------------------------------
+    // Extract Sections
+    //--------------------------------
 
-        vacancies: [],
-        importantDates: [],
-        importantLinks: [],
+    const sections = parseSections(detail);
 
-        applyLink: "",
-        notificationPdf: "",
-        officialWebsite: "",
-    };
+    //--------------------------------
+    // Parse Data
+    //--------------------------------
 
-    // Convert every row into plain text
-    const allText = detail.tables.flatMap(table =>
-        table.rows.map(row => row.map(cell => cell.text).join(" "))
+    const links = parseLinks(detail);
+    const basic = parseBasic(detail);
+    const vacancy = parseVacancies(detail);
+
+    const eligibility = parseEligibility(detail);
+
+    const dates = parseDates(
+        getSectionText(sections.dates)
     );
 
-    for (const table of detail.tables) {
+    const lastDateObj = parseLastDate(dates.lastDate);
 
-        for (const row of table.rows) {
+    const lastDatePriority = getLastDatePriority(
+        dates.lastDate,
+        lastDateObj
+    );
 
-            const text = row.map(cell => cell.text).join(" ");
+    const age = parseAge(
+        getSectionText(sections.age)
+    );
 
-            // ==========================
-            // Organization
-            // ==========================
-            if (text.includes("Name Of Post")) {
-                job.organization = row[1]?.text || "";
-            }
+    const fee = parseFee(
+        getSectionText(sections.fee)
+    );
 
-            // ==========================
-            // Short Description
-            // ==========================
-            if (text.includes("Short Information")) {
-                job.shortDescription = row[1]?.text || "";
-            }
+    const selection = parseSelection(
+        getSectionText(sections.selection)
+    );
 
-            // ==========================
-            // Age Limit
-            // ==========================
-            if (text.includes("Age Limit")) {
-                job.ageLimit = text;
-            }
+    const salary = parseSalary(
+        getSectionText(sections.salary)
+    );
 
-            // ==========================
-            // Application Fee
-            // ==========================
-            if (
-                row.length >= 2 &&
-                row[0].text.includes("Application Fee")
-            ) {
-                job.applicationFee = row[1].text;
-            }
+    const faqs = parseFaq(detail);
 
-            // ==========================
-            // Total Posts
-            // ==========================
-            if (text.includes("Vacancy Details")) {
+    //--------------------------------
+    // Final Object
+    //--------------------------------
 
-                const match = text.match(/Total\s*:?\s*(\d+)/i);
+    console.log("DATES =>", sections.dates);
+    console.log("FEE =>", sections.fee);
+    console.log("AGE =>", sections.age);
 
-                if (match) {
-                    job.totalPosts = Number(match[1]);
-                }
-            }
+    return {
 
-            // ==========================
-            // Vacancy Table
-            // ==========================
-            if (
-                row.length === 3 &&
-                row[0].text !== "Post Name" &&
-                !isNaN(Number(row[1].text))
-            ) {
-                job.vacancies.push({
-                    post: row[0].text,
-                    posts: Number(row[1].text),
-                    qualification: row[2].text,
-                });
+        //--------------------------------
+        // Basic
+        //--------------------------------
 
-                if (!job.qualification) {
-                    job.qualification = row[2].text;
-                }
-            }
+        ...basic,
 
-            // ==========================
-            // Important Links
-            // ==========================
-            if (row.length >= 2 && row[1].href) {
+        sourceUrl: detail.url,
 
-                job.importantLinks.push({
-                    title: row[0].text,
-                    url: row[1].href,
-                });
+        displaySection: detail.section,
 
-                const title = row[0].text.toLowerCase();
+        notificationType:
+            detail.section === "result"
+                ? "RESULT"
+                : detail.section === "admit_card"
+                    ? "ADMIT_CARD"
+                    : detail.section === "answer_key"
+                        ? "ANSWER_KEY"
+                        : "JOB",
 
-                if (title.includes("apply")) {
-                    job.applyLink = row[1].href;
-                }
+        //--------------------------------
+        // Parsed
+        //--------------------------------
 
-                if (title.includes("notification")) {
-                    job.notificationPdf = row[1].href;
-                }
+        ...dates,
 
-                if (title.includes("official")) {
-                    job.officialWebsite = row[1].href;
-                }
-            }
-        }
-    }
+         lastDateObj,
 
-    // ==========================
-    // Important Dates
-    // ==========================
-    const dateRow = allText.find(t => t.includes("Important Dates"));
+         lastDatePriority,
 
-    if (dateRow) {
+        ...links,
 
-        const labels = [
-            "Application Begin",
-            "Last Date for Apply Online",
-            "Last Date Pay Exam Fee",
-            "Form Correction Last Date",
-            "Exam Date",
-        ];
+        ...vacancy,
 
-        labels.forEach(label => {
+        ...eligibility,
 
-            const regex = new RegExp(`${label}\\s*:?\\s*([^A-Z]+)`, "i");
+        ...age,
 
-            const match = dateRow.match(regex);
+        ...fee,
 
-            if (match) {
-                job.importantDates.push({
-                    title: label,
-                    value: match[1].trim(),
-                });
-            }
+        ...selection,
 
-        });
+        salary,
 
-    }
+        faqs,
 
-    return job;
+        //--------------------------------
+        // Status
+        //--------------------------------
+
+        sections: [detail.section],
+
+        source: "CRAWLER",
+
+        crawlStatus: "SUCCESS",
+
+        publishedAt: new Date(),
+
+        lastCrawledAt: new Date(),
+
+        isActive: true,
+
+        isFeatured: false,
+
+        isTrending: false,
+
+        views: 0,
+
+        //--------------------------------
+        // Overview
+        //--------------------------------
+
+        quickOverview: {
+
+            totalPosts: vacancy.totalPosts || 0,
+        
+            qualification:
+                vacancy.qualification ||
+                (eligibility.qualifications || [])
+                    .map(q => q.qualification)
+                    .join(" | "),
+        
+            qualificationCount:
+                (eligibility.qualifications || []).length,
+        
+            minimumAge: age.minimumAge || null,
+        
+            maximumAge: age.maximumAge || null,
+        
+            salary:
+                salary.payScale ||
+                salary.basicPay ||
+                "",
+        
+            lastDate: dates.lastDate || "",
+        
+        },
+
+        //--------------------------------
+        // Search
+        //--------------------------------
+
+        searchKeywords: [
+
+            basic.title,
+
+            basic.organization,
+
+            basic.state,
+
+            ...(eligibility.qualifications || []).map(
+                q => q.qualification
+            ),
+
+            ...(vacancy.vacancies || []).map(
+                v => v.postName
+            )
+
+        ]
+            .flat()
+            .filter(Boolean)
+            .map(v => v.trim())
+            .filter((v, i, arr) => arr.indexOf(v) === i),
+
+        //--------------------------------
+        // SEO
+        //--------------------------------
+
+        seo: {
+
+            metaTitle: basic.title,
+
+            metaDescription:
+                (basic.shortDescription || "").substring(0, 160),
+
+            keywords: [
+
+                basic.title,
+
+                basic.organization,
+
+                basic.state,
+
+                ...(vacancy.vacancies || []).map(v => v.postName),
+
+                ...(eligibility.qualifications || []).map(
+                    q => q.qualification
+                ),
+
+                detail.section,
+
+                "Government Job",
+
+                "Latest Jobs",
+
+                "Govt Jobs"
+
+            ]
+                .flat()
+                .filter(Boolean)
+                .map(v => v.trim())
+                .filter((v, i, arr) => arr.indexOf(v) === i)
+
+        },
+
+        quickOverview: {
+
+            totalPosts: vacancy.totalPosts || 0,
+
+            qualification:
+                vacancy.qualification ||
+                (eligibility.qualifications || [])
+                    .map(q => q.qualification)
+                    .join(" | "),
+
+            qualificationCount:
+                (eligibility.qualifications || []).length,
+
+            minimumAge: age.minimumAge || null,
+
+            maximumAge: age.maximumAge || null,
+
+            salary:
+                salary.payScale ||
+                salary.basicPay ||
+                ""
+
+        },
+
+    };
+
 };

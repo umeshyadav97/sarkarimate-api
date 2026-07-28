@@ -1,6 +1,7 @@
 const cheerio = require("cheerio");
+const fs = require("fs");
 
-const BASE_URL = "https://www.sarkariresult.com";
+const { BASE_URL } = require("./constants");
 
 const INVALID_TITLES = [
     "home",
@@ -14,58 +15,104 @@ const INVALID_TITLES = [
     "youtube",
     "twitter",
     "whatsapp",
-    "syllabus",
-    "admission",
-    "answer key",
-    "latest jobs",
-    "latest job",
-    "results",
-    "admit card",
 ];
 
+/**
+ * Detect whether URL is a notification page
+ */
 function isNotification(url) {
-    return (
-        url.includes("/202") ||
-        url.includes("/railway/") ||
-        url.includes("/upsc/") ||
-        url.includes("/ssc/") ||
-        url.includes("/bank/") ||
-        url.includes("/bihar/") ||
-        url.includes("/upsssc/") ||
-        url.includes("/nta/") ||
-        url.includes("/mp/") ||
-        url.includes("/delhi/")
-    );
+
+    if (!url) return false;
+
+    try {
+
+        // Remove anchor and trailing slash
+        url = url.split("#")[0].replace(/\/$/, "");
+
+        const parsed = new URL(url);
+
+        // Accept both www and non-www
+        const hostname = parsed.hostname.replace(/^www\./, "");
+
+        if (hostname !== "sarkariresult.com.cm") {
+            return false;
+        }
+
+        // Get page slug
+        const slug = parsed.pathname.replace(/^\/|\/$/g, "");
+
+        // Ignore listing pages
+        const skip = new Set([
+            "",
+            "latest-jobs",
+            "result",
+            "admit-card",
+            "answer-key",
+            "syllabus",
+            "admission",
+            "contact",
+            "privacy-policy",
+            "disclaimer",
+            "latest-posts"
+        ]);
+
+        if (skip.has(slug)) {
+            return false;
+        }
+
+        // Notification pages contain only one path segment
+        return !slug.includes("/");
+
+    } catch (err) {
+        return false;
+    }
 }
 
 const parseListingPage = ({ html, section }) => {
+
     const $ = cheerio.load(html);
+
+    fs.writeFileSync(`debug-${section}.html`, html);
+
+    console.log("Page Title:", $("title").text());
 
     const notifications = [];
     const visited = new Set();
 
-    $(".entry-content a").each((_, el) => {
-        let title = $(el).text().trim();
+    $("a[href]").each((_, el) => {
+
+        let title = $(el)
+            .text()
+            .replace(/\s+/g, " ")
+            .trim();
 
         let url = $(el).attr("href");
 
-        if (!title || !url) return;
+        if (!title || !url)
+            return;
 
-        title = title.replace(/\s+/g, " ").trim();
-
+        // Convert relative URLs to absolute
         if (url.startsWith("/")) {
-            url = BASE_URL + url;
+            url = new URL(url, BASE_URL).href;
         }
 
-        if (!url.startsWith(BASE_URL)) return;
+        // Normalize
+        url = url.split("#")[0].replace(/\/$/, "");
 
-        if (!isNotification(url)) return;
+        const valid = isNotification(url);
 
-        const lower = title.toLowerCase();
+        console.log("TITLE:", title);
+        console.log("URL:", url);
+        console.log("VALID:", valid);
 
-        if (INVALID_TITLES.some((x) => lower.includes(x))) return;
+        if (!valid)
+            return;
 
-        if (visited.has(url)) return;
+        if (INVALID_TITLES.includes(title.toLowerCase()))
+            return;
+
+        if (visited.has(url))
+            return;
 
         visited.add(url);
 
@@ -74,6 +121,16 @@ const parseListingPage = ({ html, section }) => {
             url,
             section,
         });
+
+    });
+
+    console.log(`📌 ${section} -> ${notifications.length} notifications found`);
+
+    console.log("\nFirst 10 Notifications:");
+
+    notifications.slice(0, 10).forEach((item, i) => {
+        console.log(`${i + 1}. ${item.title}`);
+        console.log(item.url);
     });
 
     return notifications;
