@@ -139,7 +139,14 @@ const getJobs = async (query) => {
     // Override if user explicitly requests a sort
     switch (sort) {
 
+
         case "oldest":
+            sortQuery = {
+                publishedAt: -1,
+            };
+            break;
+
+        case "latest":
             sortQuery = {
                 publishedAt: 1,
             };
