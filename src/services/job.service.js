@@ -1,6 +1,7 @@
 const Job = require("../models/Job");
 const ApiError = require("../utils/ApiError");
 const mongoose = require("mongoose");
+const syllabusSeed = require("../data/syllabus.seed");
 
 /**
  * Create Job
@@ -40,6 +41,7 @@ const getJobs = async (query) => {
         isTrending,
         sort = "latest",
     } = query;
+
 
     page = Number(page);
     limit = Number(limit);
@@ -190,27 +192,124 @@ const getJobs = async (query) => {
         Job.countDocuments(filter),
 
     ]);
+    const additionalData = {};
+
+    if (sections === "latest_job") {
+
+        const [admitCards, results] = await Promise.all([
+    
+            Job.find({
+                isActive: true,
+                sections: "admit_card",
+            })
+                .select(projection)
+                .populate("category", "name slug")
+                .populate("department", "name slug")
+                .sort({ publishedAt: 1 })
+                .limit(5)
+                .lean(),
+    
+            Job.find({
+                isActive: true,
+                sections: "result",
+            })
+                .select(projection)
+                .populate("category", "name slug")
+                .populate("department", "name slug")
+                .sort({ publishedAt: 1 })
+                .limit(5)
+                .lean(),
+    
+        ]);
+    
+        additionalData.admitCards = admitCards;
+        additionalData.results = results;
+    
+    }
+
+    if (sections === "admit_card") {
+
+        const [latestJobs, results] = await Promise.all([
+    
+            Job.find({
+                isActive: true,
+                sections: "latest_job",
+            })
+                .select(projection)
+                .populate("category", "name slug")
+                .populate("department", "name slug")
+                .sort({
+                    lastDateObj: -1,
+                    publishedAt: -1,
+                })
+                .limit(5)
+                .lean(),
+    
+            Job.find({
+                isActive: true,
+                sections: "result",
+            })
+                .select(projection)
+                .populate("category", "name slug")
+                .populate("department", "name slug")
+                .sort({ publishedAt: 1 })
+                .limit(5)
+                .lean(),
+    
+        ]);
+    
+        additionalData.latestJobs = latestJobs;
+        additionalData.results = results;
+    
+    }
+
+    if (sections === "result") {
+      
+        const [latestJobs, admitCards] = await Promise.all([
+    
+            Job.find({
+                isActive: true,
+                sections: "latest_job",
+            })
+                .select(projection)
+                .populate("category", "name slug")
+                .populate("department", "name slug")
+                .sort({
+                    lastDateObj: -1,
+                    publishedAt: -1,
+                })
+                .limit(5)
+                .lean(),
+    
+            Job.find({
+                isActive: true,
+                sections: "admit_card",
+            })
+                .select(projection)
+                .populate("category", "name slug")
+                .populate("department", "name slug")
+                .sort({ publishedAt: 1 })
+                .limit(5)
+                .lean(),
+    
+        ]);
+    
+        additionalData.latestJobs = latestJobs;
+        additionalData.admitCards = admitCards;
+    
+    }
 
     return {
-
         jobs,
-
+        ...additionalData,
         pagination: {
-
             total,
-
             page,
-
             limit,
-
             totalPages: Math.ceil(total / limit),
-
             hasNextPage: page * limit < total,
-
             hasPrevPage: page > 1,
-
         },
-
     };
 
 };
@@ -366,7 +465,7 @@ const getHomeJobs = async () => {
             .select(
                 "title slug organization resultDate publishedAt"
             )
-            .sort({ publishedAt: -1 })
+            .sort({ publishedAt: 1 })
             .limit(10)
             .lean(),
 
@@ -381,7 +480,7 @@ const getHomeJobs = async () => {
             .select(
                 "title slug organization admitCardDate publishedAt"
             )
-            .sort({ publishedAt: -1 })
+            .sort({ publishedAt: 1 })
             .limit(10)
             .lean(),
 
@@ -396,7 +495,7 @@ const getHomeJobs = async () => {
             .select(
                 "title slug organization answerKeyDate publishedAt"
             )
-            .sort({ publishedAt: -1 })
+            .sort({ publishedAt: 1 })
             .limit(10)
             .lean(),
 
@@ -543,6 +642,8 @@ const getHomeJobs = async () => {
     // Response
     //----------------------------------------
 
+    let syllabusData = syllabusSeed.data.jobs
+
     return {
 
         popularSearches,
@@ -575,7 +676,8 @@ const getHomeJobs = async () => {
 
             activeUsers: "1000+"
 
-        }
+        },
+        syllabus:syllabusData
 
     };
 
