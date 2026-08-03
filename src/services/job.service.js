@@ -3,6 +3,58 @@ const ApiError = require("../utils/ApiError");
 const mongoose = require("mongoose");
 const syllabusSeed = require("../data/syllabus.seed");
 
+const JOB_LIST_PROJECTION =
+    "title slug organization shortDescription totalPosts lastDate applicationStatus publishedAt sections";
+
+// Keep populate/select in one place so every list card returns the same fields.
+const applyJobListShape = (query) =>
+    query
+        .select(JOB_LIST_PROJECTION)
+        .populate("category", "name slug")
+        .populate("department", "name slug");
+
+// Reuse preview queries to avoid repeating the same 5-item sidebar logic per table.
+const getJobPreviewList = (sections, sortQuery) =>
+    applyJobListShape(
+        Job.find({
+            isActive: true,
+            sections,
+        })
+    )
+        .sort(sortQuery)
+        .limit(5)
+        .lean();
+
+// Syllabus is seed-backed today, so this mirrors DB pagination/search without changing the API contract.
+const filterSyllabusJobs = (jobs, search) => {
+    if (!search) {
+        return jobs;
+    }
+
+    const searchTerm = search.trim().toLowerCase();
+
+    return jobs.filter((job) => {
+        const searchableText = [
+            job.title,
+            job.examName,
+            job.organization,
+            job.shortDescription,
+            job.slug,
+            job.category?.name,
+            job.category?.slug,
+            job.department?.name,
+            job.department?.slug,
+        ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+
+        return searchableText.includes(searchTerm);
+    });
+};
+
+const paginateArray = (items, skip, limit) => items.slice(skip, skip + limit);
+
 /**
  * Create Job
  */
@@ -178,17 +230,11 @@ const getJobs = async (query) => {
 
     const skip = (page - 1) * limit;
 
-    const projection =
-        "title slug organization shortDescription totalPosts lastDate applicationStatus publishedAt sections";
-
     if (sections !== "syllabus") {
 
         [jobs, total] = await Promise.all([
 
-            Job.find(filter)
-                .select(projection)
-                .populate("category", "name slug")
-                .populate("department", "name slug")
+            applyJobListShape(Job.find(filter))
                 .sort(sortQuery)
                 .skip(skip)
                 .limit(limit)
@@ -200,183 +246,85 @@ const getJobs = async (query) => {
 
     } else {
 
-        jobs = syllabusSeed.data.jobs;
-
+        jobs = filterSyllabusJobs(syllabusSeed.data.jobs, search);
         total = jobs.length;
+        jobs = paginateArray(jobs, skip, limit);
 
     }
     const additionalData = {};
+    const syllabusJobs = syllabusSeed.data.jobs.slice(0, 5);
 
     if (sections === "latest_job") {
 
-        const [admitCards, results] = await Promise.all([
+        const results = await getJobPreviewList("result", { publishedAt: 1 });
 
-            Job.find({
-                isActive: true,
-                sections: "admit_card",
-            })
-                .select(projection)
-                .populate("category", "name slug")
-                .populate("department", "name slug")
-                .sort({ publishedAt: 1 })
-                .limit(5)
-                .lean(),
-
-            Job.find({
-                isActive: true,
-                sections: "result",
-            })
-                .select(projection)
-                .populate("category", "name slug")
-                .populate("department", "name slug")
-                .sort({ publishedAt: 1 })
-                .limit(5)
-                .lean(),
-
-        ]);
-
-        additionalData.admitCards = admitCards;
+        additionalData.syllabus = syllabusJobs;
         additionalData.results = results;
 
     }
 
     if (sections === "syllabus") {
 
-        const [admitCards, results] = await Promise.all([
+        const [latestJobs, results] = await Promise.all([
     
-            Job.find({
-                isActive: true,
-                sections: "admit_card",
-            })
-                .select(projection)
-                .populate("category", "name slug")
-                .populate("department", "name slug")
-                .sort({ publishedAt: -1 })
-                .limit(5)
-                .lean(),
+            getJobPreviewList(
+                "latest_job",
+                {
+                    lastDateObj: -1,
+                    publishedAt: -1,
+                }
+            ),
     
-            Job.find({
-                isActive: true,
-                sections: "result",
-            })
-                .select(projection)
-                .populate("category", "name slug")
-                .populate("department", "name slug")
-                .sort({ publishedAt: -1 })
-                .limit(5)
-                .lean(),
+            getJobPreviewList("result", { publishedAt: -1 }),
     
         ]);
     
-        additionalData.admitCards = admitCards;
+        additionalData.latestJobs = latestJobs;
         additionalData.results = results;
     
     }
 
     if (sections === "admit_card") {
 
-        const [latestJobs, results] = await Promise.all([
-
-            Job.find({
-                isActive: true,
-                sections: "latest_job",
-            })
-                .select(projection)
-                .populate("category", "name slug")
-                .populate("department", "name slug")
-                .sort({
-                    lastDateObj: -1,
-                    publishedAt: -1,
-                })
-                .limit(5)
-                .lean(),
-
-            Job.find({
-                isActive: true,
-                sections: "result",
-            })
-                .select(projection)
-                .populate("category", "name slug")
-                .populate("department", "name slug")
-                .sort({ publishedAt: 1 })
-                .limit(5)
-                .lean(),
-
-        ]);
+        const latestJobs = await getJobPreviewList(
+            "latest_job",
+            {
+                lastDateObj: -1,
+                publishedAt: -1,
+            }
+        );
 
         additionalData.latestJobs = latestJobs;
-        additionalData.results = results;
+        additionalData.syllabus = syllabusJobs;
 
     }
 
     if (sections === "answer_key") {
 
-        const [latestJobs, results] = await Promise.all([
-    
-            Job.find({
-                isActive: true,
-                sections: "latest_job",
-            })
-                .select(projection)
-                .populate("category", "name slug")
-                .populate("department", "name slug")
-                .sort({
-                    lastDateObj: -1,
-                    publishedAt: -1,
-                })
-                .limit(5)
-                .lean(),
-    
-            Job.find({
-                isActive: true,
-                sections: "result",
-            })
-                .select(projection)
-                .populate("category", "name slug")
-                .populate("department", "name slug")
-                .sort({ publishedAt: -1 })
-                .limit(5)
-                .lean(),
-    
-        ]);
+        const latestJobs = await getJobPreviewList(
+            "latest_job",
+            {
+                lastDateObj: -1,
+                publishedAt: -1,
+            }
+        );
     
         additionalData.latestJobs = latestJobs;
-        additionalData.results = results;
+        additionalData.syllabus = syllabusJobs;
     }
 
     if (sections === "result") {
 
-        const [latestJobs, admitCards] = await Promise.all([
-
-            Job.find({
-                isActive: true,
-                sections: "latest_job",
-            })
-                .select(projection)
-                .populate("category", "name slug")
-                .populate("department", "name slug")
-                .sort({
-                    lastDateObj: -1,
-                    publishedAt: -1,
-                })
-                .limit(5)
-                .lean(),
-
-            Job.find({
-                isActive: true,
-                sections: "admit_card",
-            })
-                .select(projection)
-                .populate("category", "name slug")
-                .populate("department", "name slug")
-                .sort({ publishedAt: 1 })
-                .limit(5)
-                .lean(),
-
-        ]);
+        const latestJobs = await getJobPreviewList(
+            "latest_job",
+            {
+                lastDateObj: -1,
+                publishedAt: -1,
+            }
+        );
 
         additionalData.latestJobs = latestJobs;
-        additionalData.admitCards = admitCards;
+        additionalData.syllabus = syllabusJobs;
 
     }
 
