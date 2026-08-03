@@ -45,9 +45,9 @@ const getJobs = catchAsync(async (req, res) => {
         throw new ApiError(400, "Invalid job type.");
     }
 
-    if (sections === "syllabus") {
-        return res.status(200).json(syllabusSeed);
-    }
+    // if (sections === "syllabus") {
+    //     return res.status(200).json(syllabusSeed);
+    // }
 
     const data = await JobService.getJobs({
         ...query,
