@@ -27,47 +27,63 @@ module.exports = function parseTableVacancies(detail) {
 
     for (const table of detail.tables) {
 
-        const rows = table.rows.map(row =>
+        const rawRows = table.rows;
+
+        const rows = rawRows.map(row =>
             row.map(cell => (cell.text || "").trim())
         );
 
         let mode = "";
         let currentVacancy = null;
+        let isDistrictTable = false;
 
         for (let i = 0; i < rows.length; i++) {
 
             const row = rows[i];
+            const rawRow = rawRows[i];
 
             if (!row.length) continue;
 
             const text = row.join(" ").toLowerCase();
 
             //----------------------------------
-            // Detect vacancy header
+            // Detect Vacancy Header
             //----------------------------------
 
             if (
-                text.includes("post name") &&
+                (
+                    text.includes("post name") ||
+                    text.includes("district name") ||
+                    text.includes("district") ||
+                    text.includes("location")
+                ) &&
                 (
                     text.includes("no. of post") ||
                     text.includes("no of post") ||
                     text.includes("total post")
                 )
             ) {
+
                 mode = "vacancy";
+                isDistrictTable =
+                    text.includes("district name") ||
+                    text.includes("district");
+
                 continue;
             }
 
             //----------------------------------
-            // Detect eligibility header
+            // Detect Eligibility Header
             //----------------------------------
 
             if (
                 text.includes("post name") &&
                 text.includes("eligibility")
             ) {
+
                 mode = "eligibility";
                 continue;
+
             }
 
             //----------------------------------
@@ -95,18 +111,48 @@ module.exports = function parseTableVacancies(detail) {
                     const postName = row[0];
 
                     const totalPosts =
-                        Number(row[1].replace(/[^\d]/g, "")) || 0;
+                        Number((row[1] || "").replace(/[^\d]/g, "")) || 0;
 
-                    if (postName) {
-
-                        result.vacancies.push({
-                            postName,
-                            totalPosts,
-                            qualification: ""
-                        });
-
-                        result.totalPosts += totalPosts;
+                    if (!postName || !totalPosts) {
+                        continue;
                     }
+
+                    const vacancy = {
+                        postName,
+                        totalPosts,
+                        qualification: ""
+                    };
+
+                    if (isDistrictTable) {
+
+                        vacancy.lastDate = row[2] || "";
+                        vacancy.notification = row[3] || "";
+console.dir(rawRow[3], { depth: null });
+                        const href = rawRow?.[3]?.href || "";
+
+                        if (
+                            href &&
+                            !/sarkariresult\.com/i.test(href)
+                        ) {
+                            vacancy.notificationUrl = href;
+                        }
+
+                    }
+
+                    //----------------------------------
+                    // UP Anganwadi Support
+                    //----------------------------------
+
+                    if (isDistrictTable) {
+
+                        vacancy.lastDate = row[2] || "";
+                        vacancy.notification = row[3] || "";
+
+                    }
+
+                    result.vacancies.push(vacancy);
+
+                    result.totalPosts += totalPosts;
 
                     continue;
                 }
@@ -141,7 +187,6 @@ module.exports = function parseTableVacancies(detail) {
 
             if (mode === "eligibility") {
 
-                // Normal row
                 if (row.length >= 2) {
 
                     const postName = row[0];
@@ -161,7 +206,10 @@ module.exports = function parseTableVacancies(detail) {
                     continue;
                 }
 
+                //----------------------------------
                 // Rowspan continuation
+                //----------------------------------
+
                 if (row.length === 1 && currentVacancy) {
 
                     currentVacancy.qualification =

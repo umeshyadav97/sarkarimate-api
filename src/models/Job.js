@@ -172,6 +172,9 @@ const vacancySchema = new mongoose.Schema(
         applyLink: String,
 
         reservation: reservationSchema,
+        notification: String,
+
+        notificationUrl: String,
     },
     {
         _id: false,
@@ -557,7 +560,7 @@ const jobSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
-        
+
         lastDatePriority: {
             type: Number,
             default: 99,
@@ -766,27 +769,27 @@ const jobSchema = new mongoose.Schema(
         notificationType: {
 
             type: String,
-        
+
             enum: [
-        
+
                 "JOB",
-        
+
                 "RESULT",
-        
+
                 "ADMIT_CARD",
-        
+
                 "ANSWER_KEY",
-        
+
                 "SYLLABUS",
-        
+
                 "ADMISSION",
-        
+
                 "SCHOLARSHIP"
-        
+
             ],
-        
+
             default: "JOB"
-        
+
         },
         applicationStatus: {
             type: String,
