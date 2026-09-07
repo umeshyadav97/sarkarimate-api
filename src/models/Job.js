@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const slugify = require("slugify");
+const buildDisplaySlug = require("../utils/displaySlug");
 
 /**
  * ==========================================
@@ -366,6 +367,11 @@ const jobSchema = new mongoose.Schema(
             type: String,
             unique: true,
             sparse: true,
+        },
+
+        displaySlug: {
+            type: String,
+            trim: true,
         },
 
         shortDescription: {
@@ -893,10 +899,23 @@ jobSchema.pre("save", async function (next) {
             );
         }
 
+        this.displaySlug = buildDisplaySlug(this.slug || this.title);
+
         next();
     } catch (error) {
         next(error);
     }
+});
+
+jobSchema.pre("findOneAndUpdate", function (next) {
+    const update = this.getUpdate();
+    const data = update?.$set || update;
+
+    if (data && (data.slug || data.title)) {
+        data.displaySlug = buildDisplaySlug(data.slug || data.title);
+    }
+
+    next();
 });
 
 /**
