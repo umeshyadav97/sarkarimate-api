@@ -2,9 +2,32 @@ const Job = require("../models/Job");
 const ApiError = require("../utils/ApiError");
 const mongoose = require("mongoose");
 const syllabusSeed = require("../data/syllabus.seed");
+const buildDisplaySlug = require("../utils/displaySlug");
 
 const JOB_LIST_PROJECTION =
-    "title slug organization shortDescription totalPosts lastDate applicationStatus publishedAt sections";
+    "title slug displaySlug organization shortDescription totalPosts lastDate applicationStatus publishedAt sections";
+
+const withDisplaySlug = (job) => {
+    if (!job) {
+        return job;
+    }
+
+    return {
+        ...job,
+        displaySlug: job.displaySlug || buildDisplaySlug(job.slug || job.title),
+    };
+};
+
+const withDisplaySlugs = (jobs) => jobs.map(withDisplaySlug);
+
+const withDisplaySlugLists = (data, fields) =>
+    fields.reduce(
+        (result, field) => ({
+            ...result,
+            [field]: withDisplaySlugs(data[field]),
+        }),
+        {}
+    );
 
 // Keep populate/select in one place so every list card returns the same fields.
 const applyJobListShape = (query) =>
@@ -28,7 +51,7 @@ const getJobPreviewList = (sections, sortQuery) =>
 // Syllabus is seed-backed today, so this mirrors DB pagination/search without changing the API contract.
 const filterSyllabusJobs = (jobs, search) => {
     if (!search) {
-        return jobs;
+        return withDisplaySlugs(jobs);
     }
 
     const searchTerm = search.trim().toLowerCase();
@@ -50,7 +73,7 @@ const filterSyllabusJobs = (jobs, search) => {
             .toLowerCase();
 
         return searchableText.includes(searchTerm);
-    });
+    }).map(withDisplaySlug);
 };
 
 const paginateArray = (items, skip, limit) => items.slice(skip, skip + limit);
@@ -252,7 +275,7 @@ const getJobs = async (query) => {
 
     }
     const additionalData = {};
-    const syllabusJobs = syllabusSeed.data.jobs.slice(0, 5);
+    const syllabusJobs = withDisplaySlugs(syllabusSeed.data.jobs.slice(0, 5));
 
     if (sections === "latest_job") {
 
@@ -329,8 +352,8 @@ const getJobs = async (query) => {
     }
 
     return {
-        jobs,
-        ...additionalData,
+        jobs: withDisplaySlugs(jobs),
+        ...withDisplaySlugLists(additionalData, Object.keys(additionalData)),
         pagination: {
             total,
             page,
@@ -388,7 +411,7 @@ const getJobBySlug = async (slug) => {
         sections: { $in: job.sections }
     })
         .select(
-            "title slug organization lastDate applicationStatus totalPosts"
+            "title slug displaySlug organization lastDate applicationStatus totalPosts"
         )
         .sort({
             publishedAt: -1
@@ -401,8 +424,8 @@ const getJobBySlug = async (slug) => {
     //----------------------------------------
 
     return {
-        job,
-        relatedJobs
+        job: withDisplaySlug(job),
+        relatedJobs: withDisplaySlugs(relatedJobs)
     };
 };
 
@@ -474,7 +497,7 @@ const getHomeJobs = async () => {
             sections: "latest_job"
         })
             .select(
-                "title slug organization totalPosts applicationStatus lastDate publishedAt lastDateObj lastDatePriority"
+                "title slug displaySlug organization totalPosts applicationStatus lastDate publishedAt lastDateObj lastDatePriority"
             )
             .sort({
                 lastDateObj: -1,
@@ -492,7 +515,7 @@ const getHomeJobs = async () => {
             sections: "result"
         })
             .select(
-                "title slug organization resultDate publishedAt"
+                "title slug displaySlug organization resultDate publishedAt"
             )
             .sort({ publishedAt: 1 })
             .limit(10)
@@ -507,7 +530,7 @@ const getHomeJobs = async () => {
             sections: "admit_card"
         })
             .select(
-                "title slug organization admitCardDate publishedAt"
+                "title slug displaySlug organization admitCardDate publishedAt"
             )
             .sort({ publishedAt: 1 })
             .limit(10)
@@ -522,7 +545,7 @@ const getHomeJobs = async () => {
             sections: "answer_key"
         })
             .select(
-                "title slug organization answerKeyDate publishedAt"
+                "title slug displaySlug organization answerKeyDate publishedAt"
             )
             .sort({ publishedAt: 1 })
             .limit(10)
@@ -539,7 +562,7 @@ const getHomeJobs = async () => {
             }
         })
             .select(
-                "title slug organization lastDate"
+                "title slug displaySlug organization lastDate"
             )
             .sort({
                 lastDate: 1
@@ -580,7 +603,7 @@ const getHomeJobs = async () => {
             isActive: true
         })
             .select(
-                "title slug organization"
+                "title slug displaySlug organization"
             )
             .limit(10)
             .lean(),
@@ -594,7 +617,7 @@ const getHomeJobs = async () => {
             isActive: true
         })
             .select(
-                "title slug organization"
+                "title slug displaySlug organization"
             )
             .limit(10)
             .lean()
@@ -671,7 +694,16 @@ const getHomeJobs = async () => {
     // Response
     //----------------------------------------
 
-    let syllabusData = syllabusSeed.data.jobs
+    const homeLists = {
+        latestJobs,
+        latestResults,
+        latestAdmitCards,
+        latestAnswerKeys,
+        upcomingDeadlines,
+        trendingJobs,
+        featuredJobs,
+        syllabus: syllabusSeed.data.jobs,
+    };
 
     return {
 
@@ -679,19 +711,7 @@ const getHomeJobs = async () => {
 
         quickAccess,
 
-        latestJobs,
-
-        latestResults,
-
-        latestAdmitCards,
-
-        latestAnswerKeys,
-
-        upcomingDeadlines,
-
-        trendingJobs,
-
-        featuredJobs,
+        ...withDisplaySlugLists(homeLists, Object.keys(homeLists)),
 
         stats: {
 
@@ -706,8 +726,6 @@ const getHomeJobs = async () => {
             activeUsers: "1000+"
 
         },
-        syllabus: syllabusData
-
     };
 
 };
@@ -727,7 +745,7 @@ const getJobDetails = async (id) => {
         throw new ApiError(404, "Job not found.");
     }
 
-    return job;
+    return withDisplaySlug(job);
 };
 
 module.exports = {

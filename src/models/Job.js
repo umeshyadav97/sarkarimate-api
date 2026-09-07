@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const slugify = require("slugify");
+const buildDisplaySlug = require("../utils/displaySlug");
 
 /**
  * ==========================================
@@ -172,6 +173,9 @@ const vacancySchema = new mongoose.Schema(
         applyLink: String,
 
         reservation: reservationSchema,
+        notification: String,
+
+        notificationUrl: String,
     },
     {
         _id: false,
@@ -363,6 +367,11 @@ const jobSchema = new mongoose.Schema(
             type: String,
             unique: true,
             sparse: true,
+        },
+
+        displaySlug: {
+            type: String,
+            trim: true,
         },
 
         shortDescription: {
@@ -557,7 +566,7 @@ const jobSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
-        
+
         lastDatePriority: {
             type: Number,
             default: 99,
@@ -766,27 +775,27 @@ const jobSchema = new mongoose.Schema(
         notificationType: {
 
             type: String,
-        
+
             enum: [
-        
+
                 "JOB",
-        
+
                 "RESULT",
-        
+
                 "ADMIT_CARD",
-        
+
                 "ANSWER_KEY",
-        
+
                 "SYLLABUS",
-        
+
                 "ADMISSION",
-        
+
                 "SCHOLARSHIP"
-        
+
             ],
-        
+
             default: "JOB"
-        
+
         },
         applicationStatus: {
             type: String,
@@ -858,16 +867,52 @@ const jobSchema = new mongoose.Schema(
 * Generate Unique Slug
 * ==========================================
 */
-jobSchema.pre("save", function (next) {
-    if (this.isModified("title")) {
-        this.slug =
-            slugify(this.title, {
-                lower: true,
-                strict: true,
-                trim: true,
-            }) +
-            "-" +
-            Date.now();
+jobSchema.statics.generateUniqueSlug = async function (title, excludeId) {
+    const baseSlug = slugify(title, {
+        lower: true,
+        strict: true,
+        trim: true,
+    });
+
+    let slug = baseSlug;
+    let suffix = 2;
+
+    while (
+        await this.exists({
+            slug,
+            ...(excludeId ? { _id: { $ne: excludeId } } : {}),
+        })
+    ) {
+        slug = `${baseSlug}-${suffix}`;
+        suffix++;
+    }
+
+    return slug;
+};
+
+jobSchema.pre("save", async function (next) {
+    try {
+        if (this.isModified("title")) {
+            this.slug = await this.constructor.generateUniqueSlug(
+                this.title,
+                this._id
+            );
+        }
+
+        this.displaySlug = buildDisplaySlug(this.slug || this.title);
+
+        next();
+    } catch (error) {
+        next(error);
+    }
+});
+
+jobSchema.pre("findOneAndUpdate", function (next) {
+    const update = this.getUpdate();
+    const data = update?.$set || update;
+
+    if (data && (data.slug || data.title)) {
+        data.displaySlug = buildDisplaySlug(data.slug || data.title);
     }
 
     next();

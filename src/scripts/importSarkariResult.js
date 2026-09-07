@@ -21,7 +21,6 @@ const shouldImport = require("../utils/shouldImport");
 const Job = require("../models/Job");
 const Category = require("../models/Category");
 const Department = require("../models/Department");
-const slugify = require("slugify");
 
 const detectDepartment = require("../utils/detectDepartment");
 
@@ -106,19 +105,7 @@ async function start() {
 
             // process.exit();
 
-            const crypto = require("crypto");
-
-            job.slug =
-                slugify(job.title, {
-                    lower: true,
-                    strict: true,
-                }) +
-                "-" +
-                crypto
-                    .createHash("md5")
-                    .update(job.sourceUrl)
-                    .digest("hex")
-                    .slice(0, 8);
+            job.slug = await Job.generateUniqueSlug(job.title);
 
             // Skip old jobs
             if (!shouldImport(job)) {
