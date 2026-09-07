@@ -861,19 +861,42 @@ const jobSchema = new mongoose.Schema(
 * Generate Unique Slug
 * ==========================================
 */
-jobSchema.pre("save", function (next) {
-    if (this.isModified("title")) {
-        this.slug =
-            slugify(this.title, {
-                lower: true,
-                strict: true,
-                trim: true,
-            }) +
-            "-" +
-            Date.now();
+jobSchema.statics.generateUniqueSlug = async function (title, excludeId) {
+    const baseSlug = slugify(title, {
+        lower: true,
+        strict: true,
+        trim: true,
+    });
+
+    let slug = baseSlug;
+    let suffix = 2;
+
+    while (
+        await this.exists({
+            slug,
+            ...(excludeId ? { _id: { $ne: excludeId } } : {}),
+        })
+    ) {
+        slug = `${baseSlug}-${suffix}`;
+        suffix++;
     }
 
-    next();
+    return slug;
+};
+
+jobSchema.pre("save", async function (next) {
+    try {
+        if (this.isModified("title")) {
+            this.slug = await this.constructor.generateUniqueSlug(
+                this.title,
+                this._id
+            );
+        }
+
+        next();
+    } catch (error) {
+        next(error);
+    }
 });
 
 /**
