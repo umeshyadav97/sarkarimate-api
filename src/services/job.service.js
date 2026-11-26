@@ -3,6 +3,14 @@ const ApiError = require("../utils/ApiError");
 const mongoose = require("mongoose");
 const syllabusSeed = require("../data/syllabus.seed");
 const buildDisplaySlug = require("../utils/displaySlug");
+const createTtlCache = require("../utils/ttlCache");
+const escapeRegex = require("../utils/escapeRegex");
+
+// Per warm function instance only. Other instances expire naturally within 3 min.
+const READ_CACHE_TTL_MS = 3 * 60 * 1000;
+const readCache = createTtlCache({ maxEntries: 100 });
+const HOME_CACHE_KEY = "jobs:home";
+const PREVIEW_CACHE_PREFIX = "jobs:preview:";
 
 const JOB_LIST_PROJECTION =
     "title slug displaySlug organization shortDescription totalPosts lastDate applicationStatus publishedAt sections";
@@ -38,15 +46,18 @@ const applyJobListShape = (query) =>
 
 // Reuse preview queries to avoid repeating the same 5-item sidebar logic per table.
 const getJobPreviewList = (sections, sortQuery) =>
-    applyJobListShape(
-        Job.find({
-            isActive: true,
-            sections,
-        })
-    )
-        .sort(sortQuery)
-        .limit(5)
-        .lean();
+    readCache.getOrLoad(
+        `${PREVIEW_CACHE_PREFIX}${sections}:${JSON.stringify(sortQuery)}`,
+        () => applyJobListShape(
+            Job.find({ isActive: true, sections })
+        )
+            .sort(sortQuery)
+            .limit(5)
+            .lean(),
+        READ_CACHE_TTL_MS
+    );
+
+const invalidateReadCache = () => readCache.clear();
 
 // Syllabus is seed-backed today, so this mirrors DB pagination/search without changing the API contract.
 const filterSyllabusJobs = (jobs, search) => {
@@ -94,6 +105,7 @@ const createJob = async (payload) => {
     }
 
     const job = await Job.create(payload);
+    invalidateReadCache();
 
     return job;
 };
@@ -162,28 +174,28 @@ const getJobs = async (query) => {
 
             {
                 title: {
-                    $regex: search,
+                    $regex: escapeRegex(search.trim()),
                     $options: "i",
                 },
             },
 
             {
                 organization: {
-                    $regex: search,
+                    $regex: escapeRegex(search.trim()),
                     $options: "i",
                 },
             },
 
             {
                 qualification: {
-                    $regex: search,
+                    $regex: escapeRegex(search.trim()),
                     $options: "i",
                 },
             },
 
             {
                 searchKeywords: {
-                    $regex: search,
+                    $regex: escapeRegex(search.trim()),
                     $options: "i",
                 },
             }
@@ -442,6 +454,8 @@ const updateJob = async (id, payload) => {
         throw new ApiError(404, "Job not found.");
     }
 
+    invalidateReadCache();
+
     return job;
 };
 
@@ -463,10 +477,12 @@ const deleteJob = async (id) => {
         throw new ApiError(404, "Job not found.");
     }
 
+    invalidateReadCache();
+
     return job;
 };
 
-const getHomeJobs = async () => {
+const loadHomeJobs = async () => {
 
     //----------------------------------------
     // Latest Lists
@@ -729,6 +745,9 @@ const getHomeJobs = async () => {
     };
 
 };
+const getHomeJobs = () =>
+    readCache.getOrLoad(HOME_CACHE_KEY, loadHomeJobs, READ_CACHE_TTL_MS);
+
 const getJobDetails = async (id) => {
 
     if (!mongoose.Types.ObjectId.isValid(id)) {

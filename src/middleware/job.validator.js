@@ -81,6 +81,12 @@ const getJobBySlugValidation = [
 ];
 
 const getJobsValidation = [
+    query("search")
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 100 })
+        .withMessage("Search cannot exceed 100 characters"),
+
     query("page")
         .optional()
         .isInt({ min: 1 })
